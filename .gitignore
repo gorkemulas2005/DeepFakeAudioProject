@@ -1,0 +1,45 @@
+# ==================== Python ====================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ==================== Virtual Environment ====================
+.venv/
+venv/
+ENV/
+
+# ==================== IDE ====================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ==================== Data (büyük dosyalar) ====================
+data/raw/
+data/processed/
+data/keys/
+
+# ==================== Geçici / Temp dosyalar ====================
+data/temp_*.png
+data/IMRAD_Adli_Rapor.pdf
+
+# ==================== Eski sürüm yedekleri ====================
+IMRAD_Rapor_v*_backup.html
+
+# ==================== PDF çıktıları ====================
+*.pdf
+
+# ==================== OS dosyaları ====================
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# ==================== Diğer ====================
+*.log
+*.tmp
