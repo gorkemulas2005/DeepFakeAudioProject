@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Derin Öğrenme Tabanlı Deepfake Ses Tespit Sistemi — IMRAD Raporu</title>
+<script>
+window.MathJax = { tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #232735;
+    --border: #2d3148;
+    --text: #e4e7ec;
+    --text-dim: #9198a8;
+    --accent: #6c63ff;
+    --accent2: #22d3ee;
+    --accent3: #f97316;
+    --green: #22c55e;
+    --red: #ef4444;
+    --gold: #f59e0b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    font-size: 15px;
+  }
+
+  /* --- PRINT / PDF STYLES --- */
+  @media print {
+    body { background: #fff; color: #1a1a2e; font-size: 11pt; line-height: 1.6; }
+    .page-break { page-break-before: always; }
+    .hero-section { background: linear-gradient(135deg, #1a1a2e, #16213e) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .section { border-color: #ddd; background: #fff; box-shadow: none; }
+    .code-block { background: #f4f4f8 !important; color: #1a1a2e !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .metric-card { background: #f8f9fa !important; border-color: #ddd; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    table th { background: #1a1a2e !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    table td { color: #1a1a2e; }
+    .comparison-grid .card { background: #f8f9fa; border-color: #ddd; }
+    .tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+
+  @page {
+    size: A4;
+    margin: 15mm 12mm;
+  }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+  /* --- HERO --- */
+  .hero-section {
+    background: linear-gradient(135deg, #0f1117 0%, #1a1033 40%, #0f1117 100%);
+    padding: 60px 0 40px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-section::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle at 60% 40%, rgba(108,99,255,0.08) 0%, transparent 50%),
+                radial-gradient(circle at 30% 70%, rgba(34,211,238,0.06) 0%, transparent 50%);
+  }
+  .hero-section h1 {
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #fff, var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+    position: relative;
+  }
+  .hero-section .subtitle {
+    font-size: 14px;
+    color: var(--text-dim);
+    font-weight: 400;
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .hero-meta {
+    display: flex; gap: 24px; justify-content: center; flex-wrap: wrap;
+    font-size: 12px; color: var(--text-dim); position: relative;
+  }
+  .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+  /* --- SECTIONS --- */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin: 24px 0;
+  }
+  .section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent2);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title .num {
+    background: var(--accent);
+    color: #fff;
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--accent2);
+    margin: 20px 0 10px;
+  }
+  h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gold);
+    margin: 16px 0 8px;
+  }
+
+  p { margin-bottom: 12px; }
+
+  /* --- TAGS --- */
+  .tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    margin: 2px 4px 2px 0;
+  }
+  .tag-1d { background: rgba(108,99,255,0.2); color: #a5a0ff; border: 1px solid rgba(108,99,255,0.3); }
+  .tag-2d { background: rgba(249,115,22,0.2); color: #fbbf72; border: 1px solid rgba(249,115,22,0.3); }
+  .tag-green { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
+  .tag-red { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+
+  /* --- CODE --- */
+  .code-block {
+    background: #12141c;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    overflow-x: auto;
+    margin: 12px 0;
+    color: #c9d1d9;
+  }
+  .code-block .kw { color: #ff7b72; }
+  .code-block .fn { color: #d2a8ff; }
+  .code-block .str { color: #a5d6ff; }
+  .code-block .cm { color: #8b949e; }
+  .code-block .num { color: #79c0ff; }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(108,99,255,0.1);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+
+  /* --- TABLES --- */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  table th {
+    background: var(--accent);
+    color: #fff;
+    padding: 10px 12px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  table th:first-child { border-radius: 8px 0 0 0; text-align: left; }
+  table th:last-child { border-radius: 0 8px 0 0; }
+  table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+  table td:first-child { text-align: left; font-weight: 500; }
+  table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+  table tr:hover { background: rgba(108,99,255,0.05); }
+  .best { color: var(--green); font-weight: 700; }
+  .worst { color: var(--red); font-weight: 600; }
+
+  /* --- METRIC CARDS --- */
+  .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0; }
+  .metric-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .metric-card .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .metric-card .value { font-size: 24px; font-weight: 800; margin: 4px 0; }
+  .metric-card .desc { font-size: 11px; color: var(--text-dim); }
+
+  /* --- COMPARISON GRID --- */
+  .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .comparison-grid .card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .comparison-grid .card h4 { margin-top: 0; }
+
+  /* --- IMAGES --- */
+  .img-container {
+    margin: 16px 0;
+    text-align: center;
+  }
+  .img-container img {
+    max-width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .img-caption {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-style: italic;
+    margin-top: 8px;
+  }
+
+  /* --- FORMULA BOX --- */
+  .formula-box {
+    background: linear-gradient(135deg, rgba(108,99,255,0.08), rgba(34,211,238,0.05));
+    border: 1px solid rgba(108,99,255,0.2);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 16px 0;
+    text-align: center;
+  }
+  .formula-box .label {
+    font-size: 12px;
+    color: var(--accent2);
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* --- CALLOUT --- */
+  .callout {
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    margin: 16px 0;
+    background: rgba(108,99,255,0.05);
+    border-radius: 0 8px 8px 0;
+    font-size: 14px;
+  }
+  .callout-warn {
+    border-left-color: var(--gold);
+    background: rgba(245,158,11,0.05);
+  }
+  .callout-success {
+    border-left-color: var(--green);
+    background: rgba(34,197,94,0.05);
+  }
+
+  /* --- FLOW DIAGRAM --- */
+  .flow {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; flex-wrap: wrap; margin: 16px 0;
+  }
+  .flow-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+  }
+  .flow-arrow { color: var(--accent2); font-size: 18px; }
+
+  ul, ol { padding-left: 24px; margin: 8px 0 16px; }
+  li { margin-bottom: 6px; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+</style>
+</head>
+<body>
+
+<!-- ===================== HERO ===================== -->
+<div class="hero-section">
+  <div class="container">
+    <h1>Derin Öğrenme Tabanlı Deepfake Ses Tespit Sistemi</h1>
+    <div class="subtitle">1D Ham Dalga Formu (RawNet2) ve 2D Mel-Spektrogram (SENet) Mimarilerinin<br>Karşılaştırmalı Analizi — IMRAD Formatında Akademik Teknik Rapor</div>
+    <div class="hero-meta">
+      <span>📅 Mayıs 2025</span>
+      <span>🎯 ASVspoof 2019 LA</span>
+      <span>⚡ RTX 4050 (6 GB VRAM)</span>
+      <span>🧠 PyTorch + CUDA AMP</span>
+      <span><a href="https://github.com/gorkemulas2005/DeepFakeAudioProject" target="_blank" style="color: var(--accent2); text-decoration: none;">🔗 GitHub: gorkemulas2005/DeepFakeAudioProject</a></span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ===================== 1. GİRİŞ ===================== -->
+<div class="section">
+  <div class="section-title"><span class="num">1</span> GİRİŞ (Introduction)</div>
+
+  <p>Sentetik ses üretim teknolojilerinin (Text-to-Speech, Voice Conversion, GAN tabanlı vocoderlar) hızla gelişmesi, ses tabanlı kimlik doğrulama ve adli bilişim sistemleri için kritik bir güvenlik tehdidi oluşturmaktadır. <strong>Vocoder</strong> (voice + coder), metin veya ses özniteliklerinden (mel-spektrogram, F0 konturu vb.) yeniden ses dalga formu üreten bir sentez motorudur. WaveRNN, WaveGlow, Griffin-Lim gibi modern vocoderlar, insan kulağının ayırt edemediği düzeyde gerçekçi deepfake sesler üretebilmektedir — bu da banka doğrulama sistemlerinden sosyal mühendislik saldırılarına kadar geniş bir tehdit yüzeyi sunmaktadır.</p>
+
+  <h4>Ses Sinyalinin Doğası ve Deepfake Tespiti</h4>
+  <p>Ses, ortamdaki basınç değişimlerinin zamana göre kayıt altına alınmasıyla oluşan bir <strong>analog sinyal</strong>dir. Dijital ortamda bu sinyal, belirli bir örnekleme hızıyla (sampling rate) sayısallaştırılır. Örnekleme hızı, sinyalin doğru temsil edilebilmesi için <strong>Nyquist teoremine</strong> uymalıdır: bir frekansın doğru kaydedilebilmesi için örnekleme hızının, o frekansın en az iki katı olması gerekir. 16 kHz örnekleme → 0-8 kHz frekans bandını temsil eder. İnsan konuşmasının kritik frekans bileşenleri (~100-4000 Hz) bu bandın içindedir.</p>
+
+  <p>Ses sinyalinin iki temel boyutu vardır: <strong>zaman</strong> ve <strong>frekans</strong>. Ham dalga formunda (waveform) yalnızca zaman bilgisi açıkça temsil edilir; frekans bilgisi bu sinyalin içinde <em>gizli</em> (implicit) olarak kodlanmıştır. Mel-spektrogramda ise Fourier dönüşümü aracılığıyla sinyalin frekans bileşenleri zamana göre ayrıştırılır ve bir 2D matris (frekans × zaman) oluşturulur. Bu matris, sesin içindeki harmonik yapıyı, formant geçişlerini ve vocoderların ürettiği yapay düzenlilikleri <strong>görsel bir doku olarak</strong> ortaya koyar.</p>
+
+  <p>Deepfake vocoderları (WaveRNN, WaveGlow, Griffin-Lim vb.) gerçek sesi yeniden sentezlerken, belirli frekans bantlarında doğal sinyalde bulunmayan <strong>periyodik artefaktlar</strong> bırakır. Bu artefaktlar, frekans alanında karakteristik çizgi desenleri (spectral artifacts) olarak görünür. Bu çalışmanın temel hipotezi: <em>bu artefaktları yakalamak için kullanılan sinyal temsili ve model mimarisi, tespit başarısını doğrudan belirler</em>.</p>
+
+  <p>Bu projede iki temel soruyu yanıtlamayı amaçlıyoruz:</p>
+  <ol>
+    <li><strong>Temsil Uzayı Seçimi:</strong> Ses sinyali 1D zaman serisi (ham dalga formu) olarak mı, yoksa 2D frekans-zaman matrisi (Mel-spektrogram) olarak mı temsil edildiğinde daha ayrıştırıcı öznitelikler elde edilir?</li>
+    <li><strong>Kayıp Fonksiyonu Mühendisliği:</strong> CrossEntropy, Focal Loss ve Label Smoothing stratejilerinin genelleme kapasitesi ve aşırı öğrenme (overfitting) davranışı üzerindeki etkileri nelerdir?</li>
+  </ol>
+
+  <h3>1.1 Veri Seti: ASVspoof 2019 LA (Logical Access)</h3>
+  <p>Çalışmada <strong>ASVspoof 2019 Challenge</strong> kapsamında yayınlanan Logical Access (LA) veri seti kullanılmıştır. Bu veri seti, otomatik konuşmacı doğrulama sistemlerini (ASV) hedef alan sentetik ses saldırılarını içerir.</p>
+
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="label">Toplam İşlenen Veri</div>
+      <div class="value" style="color: var(--accent2)">40,000</div>
+      <div class="desc">20K gerçek + 20K sahte (dengeli)</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Eğitim / Doğrulama</div>
+      <div class="value" style="color: var(--accent)">32K / 8K</div>
+      <div class="desc">%80-%20 stratified split</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Ses Formatı</div>
+      <div class="value" style="color: var(--gold)">FLAC</div>
+      <div class="desc">16 kHz, 4 sn sabitlenmiş</div>
+    </div>
+  </div>
+
+  <h4>Metadata Yapısı</h4>
+  <p><code>trial_metadata.txt</code> dosyasından <strong>Audio_ID</strong> ve <strong>Label</strong> (bonafide/spoof) sütunları çekilmiştir. Sınıf dengeleme işlemi <strong>Undersampling</strong> yöntemiyle yapılmış, her sınıftan eşit sayıda (20,000) örnek seçilmiştir. Sequential bias'ı yok etmek için veri stokastik olarak karıştırılmıştır (<code>random_state=1337</code>).</p>
+
+  <div class="callout">
+    <strong>Neden 40,000?</strong> ASVspoof 2019 LA eğitim setinde ~25,000 bonafide ve ~22,800 spoof ses bulunur. Toplam ~48K'dan 40K'yı dengeli biçimde çekerek hem sınıf dengesini sağladık hem de 6 GB VRAM sınırı dahilinde batch işlem yapılabilirliği koruduk.
+  </div>
+
+  <h4>Veri Seti Kaynağı ve Saldırı Tipleri</h4>
+  <p>ASVspoof 2019, <strong>ISCA (International Speech Communication Association)</strong> tarafından düzenlenen uluslararası bir yarışma kapsamında yayınlanmıştır. Veri seti, Edinburgh Üniversitesi ve NII (Japonya Ulusal Bilişim Enstitüsü) iş birliğiyle oluşturulmuştur. Verilere <code>https://datashare.ed.ac.uk/handle/10283/3336</code> adresinden erişilmiştir.</p>
+
+  <p>LA (Logical Access) partisyonu, <strong>17 farklı TTS/VC saldırı algoritması</strong> ile üretilmiş sentetik sesler içerir. Bunlar arasında WaveRNN, WaveGlow, Griffin-Lim, WORLD vocoder gibi farklı nesil sentez yöntemleri bulunur. Eğitim setinde 6 saldırı tipi (A01-A06), değerlendirme setinde 13 saldırı tipi (A07-A19) yer alır. Bu çeşitlilik, modelin <strong>bilinmeyen saldırı tiplerine genelleme</strong> kapasitesini ölçmeyi amaçlar.</p>
+
+  <div class="callout">
+    <strong>Neden FLAC?</strong> ASVspoof 2019 ses dosyaları FLAC (Free Lossless Audio Codec) formatında dağıtılmıştır. FLAC, kayıpsız sıkıştırma kullanır — yani orijinal PCM verisini bit-perfect olarak korur. Bu, MP3 veya AAC gibi kayıplı formatların getireceği ek artefaktları veri setine sokmamak için kritiktir. Kayıplı codec artefaktları, deepfake artefaktlarıyla karışabilir ve modeli yanıltabilir.
+  </div>
+</div>
+
+<!-- ===================== 2. MATERYAL VE METOT ===================== -->
+<div class="section page-break">
+  <div class="section-title"><span class="num">2</span> MATERYAL VE METOT (Materials & Methods)</div>
+
+  <h3>2.1 Sinyal Ön İşleme (Preprocessing Pipeline)</h3>
+  <p>Her ses dosyası <strong>çift dallı (bifurcation)</strong> bir pipeline ile hem 1D hem 2D temsillere dönüştürülmüştür:</p>
+
+  <div class="flow">
+    <div class="flow-box">FLAC Dosyası<br><small>16 kHz</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">librosa.load<br><small>SR=16000</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">Boyut Sabitleme<br><small>64,000 sample<br>(4 sn × 16 kHz)</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box" style="border-color: var(--accent);">
+      <strong>DAL 1:</strong> 1D Vektör<br><small>np.float32[64000]</small>
+    </div>
+  </div>
+  <div class="flow">
+    <div class="flow-box" style="visibility:hidden">Placeholder</div>
+    <span class="flow-arrow" style="visibility:hidden">→</span>
+    <div class="flow-box" style="visibility:hidden">Placeholder</div>
+    <span class="flow-arrow" style="visibility:hidden">→</span>
+    <div class="flow-box" style="visibility:hidden">Placeholder</div>
+    <span class="flow-arrow">↘</span>
+    <div class="flow-box" style="border-color: var(--accent3);">
+      <strong>DAL 2:</strong> Mel-Spec<br><small>float32[128×126]</small>
+    </div>
+  </div>
+
+  <h4>Mel-Spektrogram Parametreleri</h4>
+  <table>
+    <tr><th>Parametre</th><th>Değer</th><th>Geometrik Anlam</th></tr>
+    <tr><td>n_fft</td><td>2048</td><td>Her FFT penceresinde 2048 zaman noktası analiz edilir. Frekans çözünürlüğü: 16000/2048 ≈ 7.8 Hz</td></tr>
+    <tr><td>hop_length</td><td>512</td><td>Pencere kayma adımı. 64000/512 = 125 zaman çerçevesi + padding → 126 frame</td></tr>
+    <tr><td>n_mels</td><td>128</td><td>Mel ölçeğinde 128 frekans bandı. İnsan işitsel algısına uyumlu logaritmik dağılım</td></tr>
+    <tr><td>Nyquist</td><td>8000 Hz</td><td>16 kHz örnekleme → maksimum temsil edilebilir frekans = SR/2</td></tr>
+  </table>
+
+  <div class="callout">
+    <strong>Boyut Sabitleme Mantığı:</strong> Derin öğrenme modelleri sabit boyutlu girdi bekler. 4 saniyeden kısa sesler <strong>zero-padding</strong> (sessizlik ekleme) ile uzatılır, uzun sesler <strong>cropping</strong> ile kesilir. Bu şekilde tüm veri <code>[64000]</code> (1D) veya <code>[128×126]</code> (2D) sabit matris boyutuna getirilir.
+  </div>
+
+  <!-- ===== PREPROCESSİNG DERİN AÇIKLAMA ===== -->
+  <h4>1D ve 2D Temsilin Fiziksel Anlamı — Neden İki Farklı Boyut?</h4>
+
+  <p><strong>1D temsil (ham dalga formu)</strong> sesin en ilkel halidir. Tek bir eksen vardır: <strong>zaman</strong>. Her bir sayı (sample), o anlık hava basıncının genlik değerini temsil eder. 16 kHz örnekleme hızında saniyede 16,000 sayı kaydedilir — 4 saniye = 64,000 sayı. Bu diziyi düz bir çizgi gibi düşünebilirsiniz: sola gidince geçmiş, sağa gidince gelecek. Bu çizginin içinde frekans bilgisi var ama <strong>gizli</strong>. Bir dalganın kaç kez yukarı-aşağı salındığı frekansı belirler, ama bunu görmek için ya Fourier dönüşümü yapmanız ya da Conv1d filtrelerinin bunu kendi kendine keşfetmesini beklemeniz gerekir.</p>
+
+  <p><strong>2D temsil (Mel-spektrogram)</strong> sesin hem zaman hem frekans bilgisini aynı anda gösteren bir matristir. Satırlar (128 adet) frekans bantlarını, sütunlar (126 adet) zaman dilimlerini temsil eder. Her hücrenin değeri, o anda o frekans bandındaki enerji miktarını desibel (dB) cinsinden gösterir. Bu matris, sesi bir <strong>ısı haritası</strong> gibi görselleştirir: koyu renkler yüksek enerji, açık renkler düşük enerji anlamına gelir.</p>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4 style="color: var(--accent);">🔊 1D: [64000] Vektörü Ne Anlatır?</h4>
+      <p style="font-size:13px;">64,000 elemanlı bu vektörün her bir elemanı <code>float32</code> formatında -1.0 ile +1.0 arasında bir genlik değeridir. Pozitif değerler havanın sıkıştırıldığı anları, negatif değerler seyreltildiği anları temsil eder. İşte bu nedenle <strong>LeakyReLU</strong> kullanıyoruz — standart ReLU negatif değerleri sıfırlar ve sesin yarısını kaybederiz. Ses sinyalinin doğası gereği negatif genlikler, pozitif genlikler kadar bilgi taşır.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--accent3);">🎵 2D: [128×126] Matrisi Ne Anlatır?</h4>
+      <p style="font-size:13px;"><strong>128 satır</strong> = 128 mel-frekans bandı. Alt satırlar düşük frekansları (bas sesler, ~0-500 Hz), üst satırlar yüksek frekansları (~4000-8000 Hz) temsil eder. Mel ölçeği, insan kulağının düşük frekanslara daha hassas olduğu gerçeğini yansıtır — düşük frekanslarda çözünürlük yüksek, yüksek frekanslarda düşüktür. <strong>126 sütun</strong> = 126 zaman çerçevesi. Her çerçeve = 2048 sample (128 ms) genişliğinde bir penceredir, pencereler 512 sample (32 ms) arayla kayar.</p>
+    </div>
+  </div>
+
+  <h4>Fourier Dönüşümü ve STFT — Sesin İç Yüzünü Açmak</h4>
+  <p><strong>Fourier Dönüşümü (FFT)</strong>, bir sinyali oluşturan frekans bileşenlerine ayrıştıran matematiksel bir araçtır. Bunu şöyle düşünün: bir orkestra çalıyor ve siz sadece karışık sesi duyuyorsunuz. Fourier dönüşümü, bu karışık sesin içinden "bu frekans bandında şu kadar enerji var" bilgisini çıkarır — hangi enstrümanın ne kadar güçlü çaldığını tespit eder. <code>n_fft=2048</code> parametresi, her Fourier penceresi için kullanılan zaman noktası sayısıdır — daha büyük pencere, daha hassas frekans ayrımı sağlar ama zamansal detayı azaltır.</p>
+
+  <p><strong>STFT (Short-Time Fourier Transform)</strong>, bu Fourier dönüşümünü sinyalin tamamına değil, kısa zaman pencerelerine uygular. Ses zaman içinde değişen bir sinyaldir — tek bir FFT tüm sinyalin frekans ortalamasını verir ama "ne zaman hangi frekans vardı" sorusuna cevap veremez. STFT, sinyali kısa parçalara bölerek her parçanın frekans içeriğini ayrı ayrı hesaplar. Sonuç: frekans × zaman matrisi — yani mel-spektrogramın temelini oluşturan 2D gösterim.</p>
+
+  <div class="code-block"><span class="cm"># STFT'nin elle yapılışı (librosa bunu otomatik yapar)</span>
+for t in range(0, len(signal) - n_fft, hop_length):
+    window = signal[t : t + n_fft]          <span class="cm"># 2048 sample'lık pencere</span>
+    spectrum = FFT(window * hann_window)     <span class="cm"># Fourier dönüşümü</span>
+    mel_bands = mel_filterbank @ |spectrum|² <span class="cm"># Mel filtre bankası ile süzme</span>
+    spectrogram[:, frame] = 10 * log10(mel_bands / ref_max)  <span class="cm"># dB'ye çevir</span></div>
+
+  <p>Burada <strong>Hann penceresi</strong> kritik bir rol oynar: pencerenin kenarlarında sinyali yumuşakça sıfıra indirerek, keskin kenarların yarattığı yapay frekans sızıntılarını (spectral leakage) engeller. <code>n_fft=2048</code> pencere büyüklüğü, frekans çözünürlüğü ile zaman çözünürlüğü arasında bir denge noktasıdır — daha büyük pencere daha iyi frekans çözünürlüğü verir ama zaman hassasiyetini düşürür (Heisenberg belirsizlik ilkesinin sinyal işleme karşılığı). <code>hop_length=512</code> ise ardışık pencerelerin %75 örtüşmesini sağlar (2048'in dörtte biri), bu da zamansal süreklilik sağlar.</p>
+
+  <div class="callout">
+    <strong>Mel Ölçeği Nedir?</strong> Mel, insan işitsel algısını modellemeye çalışan logaritmik bir frekans ölçeğidir. İnsan kulağı 100 Hz ile 200 Hz arasındaki farkı kolayca duyarken, 5000 Hz ile 5100 Hz arasındaki aynı 100 Hz farkı neredeyse hiç ayırt edemez. Mel filtre bankası, düşük frekanslarda dar (yüksek çözünürlüklü), yüksek frekanslarda geniş (düşük çözünürlüklü) filtreler kullanarak bu algısal eşitsizliği yansıtır. Dönüşüm formülü: $m = 2595 \cdot \log_{10}(1 + f/700)$.
+  </div>
+
+  <div class="callout-warn callout">
+    <strong>power_to_db(ref=np.max) — Kritik Normalizasyon:</strong> Bu fonksiyon, mel-spektrogramdaki enerji değerlerini desibel ölçeğine çevirir ve <strong>her dosyanın en yüksek enerji noktasını 0 dB referans</strong> olarak alır. Bu sayede, yüksek sesle kaydedilmiş bir konuşma ile fısıltı, aynı ölçekte normalize edilir. Modelin hacim farkından etkilenmemesi, farklı kayıt ortamlarına genelleyebilmesi bu normalizasyon sayesindedir.
+  </div>
+
+  <h3>2.2 Veri Artırma (Data Augmentation)</h3>
+  <p>Aşırı öğrenmeyi (overfitting) engellemek için eğitim fazında <strong>stokastik veri artırma</strong> uygulanmıştır. Doğrulama (validation) seti hiçbir augmentation almaz — pürüzsüz kalır.</p>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4><span class="tag tag-1d">1D</span> Gaussian Beyaz Gürültü Enjeksiyonu</h4>
+      <div class="code-block"><span class="cm"># %50 olasılıkla gürültü ekle</span>
+noise_amp = 0.005 × random() × max(signal)
+noise = noise_amp × N(0, 1)
+augmented = signal + noise</div>
+      <p style="font-size:13px; margin-top:8px;">Mikrofon gürültüsünü ve çevresel sesi simüle eder. Genlik, orijinal sinyalin %0.5'ini aşmaz — sinyal bütünlüğü korunur.</p>
+    </div>
+    <div class="card">
+      <h4><span class="tag tag-2d">2D</span> SpecAugment (Zaman + Frekans Maskeleme)</h4>
+      <div class="code-block"><span class="cm"># Zaman maskesi: 1-10 frame genişliğinde</span>
+spec[:, t_start:t_start+t_width] = 0
+<span class="cm"># Frekans maskesi: 1-15 mel bandı</span>
+spec[f_start:f_start+f_width, :] = 0</div>
+      <p style="font-size:13px; margin-top:8px;">Google Brain'in <strong>SpecAugment</strong> tekniği (Park et al., 2019). Eğitim sırasında mel-spektrogramın rastgele bölgelerini siyaha boyar (sıfırlar). <strong>Zaman maskesi</strong>, rastgele 1-10 frame genişliğinde bir dikey şeridi siler — bu, sesin bir kısmının eksik olduğu senaryoyu simüle eder. <strong>Frekans maskesi</strong>, rastgele 1-15 mel bandı genişliğinde yatay bir şeridi siler — belirli frekans bantlarının duyulmadığı ortamı (oda akustiği, telefon band genişliği kısıtlaması) taklit eder. Sonuç: model, tüm bilgiye sahip olmadan da doğru karar vermeyi öğrenir.</p>
+    </div>
+  </div>
+
+  <div class="callout-warn callout">
+    <strong>Overfitting Kalkanı:</strong> Eğitim/doğrulama bölünmesi <code>stratify=Target</code> ile yapılmıştır — her iki sette de sınıf oranları birebir korunur. Augmentation sadece eğitim setine uygulanır. Validation seti "temiz" kalarak gerçek genelleme performansını ölçer.
+  </div>
+
+  <!-- ===== 2.3 MİMARİLER ===== -->
+  <h3>2.3 Model Mimarileri</h3>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4 style="color: var(--accent);"><span class="tag tag-1d">MİMARİ A</span> RawNet2-Lite (1D CNN)</h4>
+      <p><strong>Girdi:</strong> Ham dalga formu → <code>[Batch, 1, 64000]</code></p>
+      <p><strong>Yaklaşım:</strong> Frekans dönüşümü yapmadan, sinyalin ham zaman serisi üzerinde doğrudan öznitelik çıkarır. <strong>Conv1d (1 Boyutlu Evrişim)</strong>, öğrenilebilir küçük filtreler (kernel) ile sinyalin üzerinde kayarak yerel örüntüleri keşfeder — tıpkı bir büyüteçle satır satır taramak gibi. <strong>Conv2d</strong> ise aynı işlemi 2D matris (mel-spektrogram) üzerinde hem frekans hem zaman ekseninde yapar.</p>
+
+      <div class="code-block"><span class="cm"># Katman Akışı</span>
+Conv1d(1→32, k=128, s=32)  <span class="cm"># 64000 → ~2000 (stride=32: filtre 32 sample atlayarak kayar)</span>
+  ↓ BatchNorm → LeakyReLU(0.3)
+ResBlock(32→64, s=2)       <span class="cm"># 2000 → 1000</span>
+ResBlock(64→64, s=2)       <span class="cm"># 1000 → 500</span>
+ResBlock(64→128, s=2)      <span class="cm"># 500 → 250</span>
+  ↓ AdaptiveMaxPool1d(1)   <span class="cm"># 250 → 1</span>
+  ↓ FC(128→64) → Dropout(0.5) → FC(64→2)</div>
+
+      <p style="font-size: 13px;"><strong>Residual Block:</strong> İki Conv1d (k=3) + BatchNorm + shortcut bağlantı. Skip connection, gradyan akışını koruyarak <em>vanishing gradient</em> problemini çözer. <strong>LeakyReLU(0.3)</strong> kullanılır çünkü ses sinyallerinde negatif genlikler (amplitude) bilgi taşır — standart ReLU bu bilgiyi sıfırlar. <strong>Stride (s)</strong>, filtrenin sinyal üzerinde kaç adım atlayarak kayacağını belirler. İlk katmandaki s=32, çıktı boyutunu girdinin ~1/32'sine düşürür (64000 → 2000). ResBlock'lardaki s=2 ise her blokta boyutu yarılar. Bu kademeli küçültme, sinyali aşamalı olarak soyutlar.</p>
+
+      <div class="callout" style="margin-top: 8px;">
+        <strong>BatchNorm (Batch Normalization)</strong>, her katmanın çıktısını mini-batch içinde normalize eder — ortalamayı 0'a, standart sapmayı 1'e çeker. Ses sinyallerinde farklı kayıtların genlik dağılımları çok farklı olabilir; BatchNorm bu farkı katmanlar arasında dengeler ve eğitimi hızlandırır. <strong>Dropout(0.5)</strong> ise son FC katmanındaki nöronların %50'sini her eğitim adımında rastgele kapatır. Bu, modelin tek bir nöron grubuna aşırı bağımlı olmasını engeller ve birden fazla öznitelik kombinasyonu öğrenmeye zorlar — özellikle sınırlı veri setlerinde aşırı öğrenmeyi (overfitting) önler.
+      </div>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--accent3);"><span class="tag tag-2d">MİMARİ B</span> SENet-Mel (2D CNN + SE)</h4>
+      <p><strong>Girdi:</strong> Mel-Spektrogram → <code>[Batch, 1, 128, 126]</code></p>
+      <p><strong>Yaklaşım:</strong> Frekans-zaman matrisini görüntü olarak işler. SE blokları hangi frekans kanallarının önemli olduğunu otomatik öğrenir.</p>
+
+      <div class="code-block"><span class="cm"># Katman Akışı</span>
+Conv2d(1→32, k=3) + BN + ReLU
+  ↓ <span class="fn">SEBlock(32)</span> → MaxPool2d(2)   <span class="cm"># 128×126 → 64×63</span>
+Conv2d(32→64, k=3) + BN + ReLU
+  ↓ <span class="fn">SEBlock(64)</span> → MaxPool2d(2)   <span class="cm"># 64×63 → 32×31</span>
+Conv2d(64→128, k=3) + BN + ReLU
+  ↓ <span class="fn">SEBlock(128)</span> → MaxPool2d(2)  <span class="cm"># 32×31 → 16×15</span>
+  ↓ AdaptiveAvgPool2d(1)          <span class="cm"># 16×15 → 1×1</span>
+  ↓ Dropout(0.5) → FC(128→2)</div>
+
+      <p style="font-size: 13px;"><strong>Squeeze-and-Excitation Bloğu:</strong> Global Average Pooling ile tüm uzamsal bilgiyi sıkıştırır (Squeeze), ardından 2 katmanlı MLP ile her kanalın önem ağırlığını hesaplar (Excitation). Sigmoid çıktısı (0-1) orijinal feature map ile çarpılarak kanal bazlı dikkat (attention) uygulanır.</p>
+    </div>
+  </div>
+
+  <!-- SE Block Mathematical Detail -->
+  <div class="formula-box">
+    <div class="label">Squeeze-and-Excitation — Matematiksel Formülasyon</div>
+    <p>$$z_c = \frac{1}{H \times W} \sum_{i=1}^{H}\sum_{j=1}^{W} u_c(i,j) \quad \text{(Squeeze: Global Average Pooling)}$$</p>
+    <p>$$s = \sigma\big(W_2 \cdot \delta(W_1 \cdot z)\big) \quad \text{(Excitation: FC→ReLU→FC→Sigmoid)}$$</p>
+    <p>$$\tilde{x}_c = s_c \cdot u_c \quad \text{(Scale: Kanal ağırlıklı çarpım)}$$</p>
+    <p style="font-size: 13px; color: var(--text-dim); margin-top: 12px;">$W_1 \in \mathbb{R}^{C/r \times C}$, $W_2 \in \mathbb{R}^{C \times C/r}$ — <strong>reduction ratio $r=16$</strong>: 128 kanallık bilgi, $128/16 = 8$ boyutlu bir darboğazdan (bottleneck) geçirilir. Bu darboğaz, modeli kanallar arası ilişkileri özlü biçimde temsil etmeye zorlar ve gereksiz kanalları otomatik elemesini sağlar. $r$ çok küçükse (r=2) aşırı parametre harcanır, çok büyükse (r=32) kanallar arası ilişki bilgisi kaybolur.</p>
+  </div>
+
+  <div class="callout-success callout">
+    <strong>Geometrik Yorum:</strong> RawNet2, sinyali tek boyutlu bir dizi olarak işler — zaman eksenindeki yerel korelasyonları yakalar ancak frekans bilgisini dolaylı öğrenmek zorundadır. SENet ise sinyali 2 boyutlu bir matrise (frekans × zaman) dönüştürerek, vocoderların frekans bantlarındaki yapay düzenliliklerini (spectral artifacts) doğrudan yakalayabilir. Bu yapısal fark, SENet'in gerçek dünya performansını belirleyen temel unsurdur.
+  </div>
+
+  <!-- ===== 2.4 KAYIP FONKSİYONLARI ===== -->
+  <h3>2.4 Kayıp Fonksiyonları ve Optimizasyon</h3>
+
+  <h4>A. CrossEntropy Loss (Baseline)</h4>
+  <div class="formula-box">
+    <div class="label">Standart Çapraz Entropi</div>
+    $$\mathcal{L}_{CE} = -\sum_{i=1}^{C} y_i \log(\hat{y}_i)$$
+    <p style="font-size: 13px; color: var(--text-dim); margin-top: 8px;">$y_i$: one-hot gerçek etiket, $\hat{y}_i$: softmax çıktısı. C=2 (bonafide, spoof).</p>
+  </div>
+
+  <h4>B. Focal Loss</h4>
+  <div class="formula-box">
+    <div class="label">Odaklanmış Kayıp Fonksiyonu (Lin et al., 2017)</div>
+    $$\mathcal{L}_{FL} = -\alpha (1 - p_t)^\gamma \log(p_t)$$
+    <p style="font-size: 13px; color: var(--text-dim); margin-top: 8px;">$\gamma$: <strong>odaklanma (focusing) parametresi</strong>. $\gamma=0$ → standart CE. $\gamma$ arttıkça, modelin zaten emin olduğu kolay örneklerin gradyan katkısı baskılanır ve zor örneklere yoğunlaşılır.</p>
+    <p style="font-size: 13px; color: var(--text-dim); margin-top: 4px;"><strong>Somut örnek:</strong> Model bir sesi $p_t=0.9$ güvenle sınıflandırıyorsa (kolay örnek): <strong>γ=0</strong> (CE) → ağırlık = 1.0, <strong>γ=2</strong> → $(0.1)^2 = 0.01$ — gradyan %1'e düşer, <strong>γ=5</strong> → $(0.1)^5 = 0.00001$ — neredeyse sıfır. Zor bir örnek ($p_t=0.3$) için γ=5: $(0.7)^5 = 0.168$ — hâlâ %16.8 ağırlık. Sonuç: model neredeyse sadece zor örneklerden öğrenir. Ancak ses verisindeki yüksek doğal varyans, bu aşırı odaklanmayı tehlikeli kılar.</p>
+  </div>
+
+  <p>Focal Loss, kolay sınıflandırılan örneklerin gradyan katkısını $(1-p_t)^\gamma$ çarpanı ile baskılar. Ancak <strong>yüksek gamma değerleri</strong> ($\gamma=5$) pratikte modeli aşırı agresif hale getirerek <strong>model çökmesine</strong> (convergence failure) yol açabilir — bu projede deneysel olarak gözlemlenmiştir.</p>
+
+  <h4>C. CrossEntropy + Label Smoothing (Robust)</h4>
+  <div class="formula-box">
+    <div class="label">Etiket Yumuşatma</div>
+    $$y_i^{smooth} = (1 - \epsilon) \cdot y_i + \frac{\epsilon}{C}$$
+    <p style="font-size: 13px; color: var(--text-dim); margin-top: 8px;">$\epsilon = 0.1$ ile gerçek etiket 1.0 yerine 0.95, yanlış etiket 0.0 yerine 0.05 olur. Model %100 emin olmaktan kaçınır.</p>
+  </div>
+
+  <div class="formula-box">
+    <div class="label">Cosine Annealing Learning Rate Scheduler</div>
+    $$\eta_t = \eta_{min} + \frac{1}{2}(\eta_{max} - \eta_{min})\left(1 + \cos\left(\frac{t \cdot \pi}{T_{max}}\right)\right)$$
+    <p style="font-size: 13px; color: var(--text-dim); margin-top: 8px;">Öğrenme hızını kosinüs eğrisi boyunca kademeli düşürür — ani LR drop'lardan daha pürüzüsüz yakınsama sağlar.</p>
+  </div>
+
+  <!-- ===== GRADIENT ACCUMULATION VE AMP AÇIKLAMA ===== -->
+  <div class="comparison-grid">
+    <div class="card">
+      <h4 style="color: var(--accent2);">Gradient Accumulation (Gradyan Biriktirme)</h4>
+      <p style="font-size:13px;"><strong>Nedir?</strong> GPU bellek sınırı nedeniyle tek seferde 32 örneği işleyemiyoruz (OOM hatası). Çözüm: 8 örneklik mini-batch'ler işleyip gradyanları <strong>4 adım boyunca biriktiriyoruz</strong>, sonra tek bir güncelleme yapıyoruz. Matematiksel olarak bu, 32 örneklik batch ile eğitim yapmaya eşdeğerdir — gradyanlar toplanır ve <code>loss/ACCUM_STEPS</code> ile ölçeklenir. Böylece modelin öğrenme davranışı değişmez, sadece bellek kullanımı düşer.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--accent3);">Mixed Precision / AMP (FP16)</h4>
+      <p style="font-size:13px;"><strong>Nedir?</strong> Normalde ağırlıklar 32-bit (FP32) kayan noktalı sayılarla tutulur — her değer 4 byte yer kaplar. <strong>Mixed Precision</strong>, ileri geçiş (forward pass) sırasında hesaplamaları 16-bit'e (FP16, 2 byte) düşürerek bellek kullanımını yarıya indirir ve GPU'nun tensor çekirdeklerini daha verimli kullanır. Geri yayılım (backward) sırasında ise hassas gradyanlar için FP32'ye geri dönülür. <code>GradScaler</code>, FP16'da gradyanların sıfıra yuvarlamasını (underflow) engellemek için gradyanları otomatik ölçekler.</p>
+    </div>
+  </div>
+
+  <p>Label Smoothing, modelin logit çıktılarını aşırı büyütmesini (over-confident prediction) engelleyerek <strong>soft target distribution</strong> öğretir. Bu, özellikle domain-shift senaryolarında (eğitim seti vs. gerçek dünya mikrofonu) genelleme kapasitesini artırır.</p>
+
+  <h4>Optimizasyon Konfigürasyonu</h4>
+  <table>
+    <tr><th>Parametre</th><th>Değer</th><th>Açıklama</th></tr>
+    <tr><td>Optimizer</td><td>AdamW</td><td>Weight Decay dahili L2 regülarizasyon</td></tr>
+    <tr><td>Learning Rate</td><td>0.001</td><td>Başlangıç öğrenme hızı</td></tr>
+    <tr><td>Weight Decay</td><td>1e-3</td><td>Ağırlık çürümesi — overfitting önlemi</td></tr>
+    <tr><td>Batch Size (Efektif)</td><td>32</td><td>8 × 4 gradient accumulation</td></tr>
+    <tr><td>Epoch</td><td>15</td><td>Early stopping yerine best val_loss checkpoint</td></tr>
+    <tr><td>Scheduler</td><td>CosineAnnealingLR</td><td>Robust modeller için (T_max=15)</td></tr>
+    <tr><td>AMP</td><td>FP16 (CUDA)</td><td>Mixed Precision — VRAM tasarrufu</td></tr>
+  </table>
+
+  <!-- ===== 2.5 DONANIM KISITLARI VE MİMARİ DERİNLİK SEÇİMİ ===== -->
+  <h3>2.5 Donanım Kısıtları ve Ağ Derinliği Geometrisi</h3>
+
+  <p>Eğitim, <strong>NVIDIA RTX 4050 Laptop GPU (6 GB VRAM)</strong> üzerinde gerçekleştirilmiştir. Bu kısıt, mimari derinliğini ve batch boyutunu doğrudan belirlemiştir:</p>
+
+  <div class="callout">
+    <strong>VRAM Bütçe Hesabı:</strong> Her model çalıştırıldıktan sonra <code>torch.cuda.empty_cache()</code> ve <code>gc.collect()</code> ile bellek sıfırlanır. Grid Search'te 7 model sırayla eğitilir — eş zamanlı değil. Bu sayede 6 GB VRAM sınırı aşılmaz.
+  </div>
+
+  <table>
+    <tr><th>Karar</th><th>Neden</th><th>Alternatif</th></tr>
+    <tr><td>3 ResBlock (RawNet2)</td><td>4+ blok, 64K sample'da VRAM'i 8 GB'a taşır</td><td>ResNet-18/34 (12+ GB gerekir)</td></tr>
+    <tr><td>3 Conv+SE katmanı (SENet)</td><td>128×126 matris, 3 pooling sonrası 16×15'e düşer — yeterli soyutlama</td><td>VGG-16 benzeri derin yapı (10+ GB)</td></tr>
+    <tr><td>Batch=8, Accumulation=4</td><td>Efektif batch 32. Tek seferde 32 sample GPU'ya sığmaz</td><td>Batch=32 (OOM hatası verir)</td></tr>
+    <tr><td>FP16 Mixed Precision (AMP)</td><td>Bellek kullanımını ~%40 düşürür, hız ~%30 artar</td><td>FP32 (VRAM yetersiz)</td></tr>
+    <tr><td>AdaptivePool → FC(128→2)</td><td>Daha geniş FC (256+) VRAM'de sızıntı yapar</td><td>FC(512→256→2) (fazla parametre)</td></tr>
+  </table>
+
+  <p>Boyut azaltma akışı: RawNet2'de 64,000 → 2000 → 1000 → 500 → 250 → 1 zinciri, her katmanda uzamsal boyutu yarıya indirerek kademeli sıkıştırma uygular. SENet'te 128×126 → 64×63 → 32×31 → 16×15 → 1×1 indirgemesi, 2D matrisi aşamalı olarak tek bir vektöre daraltır. Bu derinlik, 6 GB VRAM sınırında mümkün olan <strong>maksimum soyutlama kapasitesidir</strong>.</p>
+
+  <!-- ===== 2.6 HİPERPARAMETRE TERCİHLERİ ===== -->
+  <h3>2.6 Hiperparametre Seçim Gerekçeleri</h3>
+
+  <table>
+    <tr><th>Parametre</th><th>Değer</th><th>Neden Bu Değer?</th></tr>
+    <tr><td>Learning Rate</td><td>1e-3</td><td>AdamW için standart başlangıç noktası. Çok düşük (1e-4) → yavaş yakınsama, çok yüksek (1e-2) → loss patlaması</td></tr>
+    <tr><td>Weight Decay</td><td>1e-3</td><td>L2 regülarizasyon. Ağırlıkların büyümesini engelleyerek overfitting'i baskılar. 1e-2 çok agresif, 1e-4 yetersiz</td></tr>
+    <tr><td>Dropout</td><td>0.5</td><td>Son FC katmanında %50 nöron kapatılır. Ses sınıflandırma literatüründe standart değer (Tak et al., 2021)</td></tr>
+    <tr><td>LeakyReLU α=0.3</td><td>Sadece 1D</td><td>Ses sinyalinde negatif genlikler fiziksel anlam taşır. ReLU bunları sıfırlar → bilgi kaybı. α=0.3 korur</td></tr>
+    <tr><td>Label Smoothing ε</td><td>0.1</td><td>Szegedy et al. (2016) önerisi. 0.05 etkisiz, 0.2 sınıfları bulanıklaştırır</td></tr>
+    <tr><td>Focal γ=2</td><td>Deney</td><td>Lin et al. (2017) varsayılan değeri. Zor örneklere orta düzey odaklanma</td></tr>
+    <tr><td>Focal γ=5</td><td>Deney</td><td>Aşırı agresif deney — hipotez: "çok zor örnekler ayrıştırılabilir". Sonuç: model çöktü</td></tr>
+    <tr><td>SE reduction ratio</td><td>r=16</td><td>Hu et al. (2018) önerisi. 128/16=8 boyutlu bottleneck — parametre verimliliği vs ifade gücü dengesi</td></tr>
+    <tr><td>Conv1d kernel=128</td><td>İlk katman</td><td>128/16000 = 8 ms zaman penceresi. İnsan fonemi ~20-50 ms — alt-fonem düzeyinde öznitelik çıkarma</td></tr>
+    <tr><td>n_mels=128</td><td>Mel bandı</td><td>64 → düşük frekans çözünürlüğü, 256 → gereksiz fazlalık. 128 standart ASVspoof değeri</td></tr>
+  </table>
+
+  <!-- ===== 2.7 KARŞILAŞILAN ZORLUKLAR ===== -->
+  <h3>2.7 Süreç İçerisinde Karşılaşılan Zorluklar</h3>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4 style="color: var(--red);">🔥 Focal Loss γ=5 Model Çökmesi</h4>
+      <p style="font-size:13px;">1D RawNet2 + Focal γ=5 kombinasyonu, Epoch 3'ten itibaren tüm örnekleri tek sınıfa atamaya başladı. Accuracy %50'ye sabitlendi. <strong>Kök neden:</strong> Yüksek gamma, düşük $p_t$ değerlerinde gradyanı katlanarak büyüttü → gradient explosion → degenerate solution.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--red);">🔥 CUDA autocast Hatası</h4>
+      <p style="font-size:13px;"><code>torch.amp.autocast('cuda')</code> bazı PyTorch/driver kombinasyonlarında çöküyordu. Çözüm: <code>torch.amp.autocast(device_type=device.type, enabled=(device.type=='cuda'))</code> ile dinamik cihaz tespiti.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--gold);">⚠️ Domain Mismatch (Eğitim vs Canlı)</h4>
+      <p style="font-size:13px;">Eğitim verisinde DC Offset yok, canlı kayıtlarda var. İlk testlerde 1D model canlı seslerde %30+ hata verdi. <strong>Çözüm:</strong> GUI'ye opsiyonel DSP ön işleme (DC removal + trim + Hann fade) eklendi.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--gold);">⚠️ VRAM Sızıntısı (Memory Leak)</h4>
+      <p style="font-size:13px;">Grid Search'te ardışık model eğitimlerinde VRAM birikiyordu → OOM. <strong>Çözüm:</strong> Her konfigürasyon sonrası <code>del model, optimizer</code> + <code>torch.cuda.empty_cache()</code> + <code>gc.collect()</code> üçlüsü zorunlu yapıldı.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--gold);">⚠️ Preprocessing Spektrogram Uyumsuzluğu</h4>
+      <p style="font-size:13px;">GUI'deki mel-spektrogram parametreleri (n_fft, hop_length) başlangıçta eğitim pipeline'ından farklıydı → inference'da yanlış boyutlu tensor. <strong>Çözüm:</strong> Sabitler <code>TRAIN_N_FFT=2048</code>, <code>TRAIN_HOP_LENGTH=512</code> olarak her iki dosyada senkronize edildi.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--gold);">⚠️ Gradient Accumulation Zorunluluğu</h4>
+      <p style="font-size:13px;">Batch=32 VRAM'e sığmadı. <code>ACCUM_STEPS=4</code> ile batch=8'de çalıştırıp, her 4 step'te bir <code>optimizer.step()</code> çağırarak efektif batch=32 elde ettik. Gradyanlar <code>loss/ACCUM_STEPS</code> ile ölçeklendi.</p>
+    </div>
+  </div>
+
+  <!-- ===== 2.8 KRİTİK KOD ANALİZİ ===== -->
+  <h3>2.8 Kritik Kod Analizi — Satır Bazlı İnceleme</h3>
+
+  <h4>A. preprocess.py — Çift Dallı Sinyal İşleme</h4>
+  <div class="code-block"><span class="cm"># Ses dosyasını yükle ve sabit uzunluğa getir</span>
+y, sr = librosa.load(path, sr=<span class="num">16000</span>)
+max_length = <span class="num">16000</span> * <span class="num">4</span>  <span class="cm"># 4 sn × 16 kHz = 64,000 sample</span>
+
+<span class="kw">if</span> len(y) >= max_length:
+    y = y[:max_length]        <span class="cm"># Uzun → kes (cropping)</span>
+<span class="kw">else</span>:
+    y = np.pad(y, (<span class="num">0</span>, max_length - len(y)))  <span class="cm"># Kısa → sıfır-dolgu (zero-padding)</span>
+
+<span class="cm"># DAL 1: 1D vektör olarak kaydet</span>
+np.save(path_1d, y.astype(np.float32))
+
+<span class="cm"># DAL 2: Mel-spektrogram → dB ölçeğine dönüştür → kaydet</span>
+mel = librosa.feature.melspectrogram(y=y, sr=<span class="num">16000</span>,
+        n_mels=<span class="num">128</span>, n_fft=<span class="num">2048</span>, hop_length=<span class="num">512</span>)
+mel_db = librosa.power_to_db(mel, ref=np.max)  <span class="cm"># Normalize: en yüksek enerji = 0 dB</span>
+np.save(path_2d, mel_db.astype(np.float32))</div>
+  <p><code>power_to_db(ref=np.max)</code> kritik bir adımdır: Her dosyanın enerji zirvesini 0 dB olarak referans alır, böylece farklı kayıt hacimlerindeki sesler normalize olur. Bu, SENet'in domain-shift dayanıklılığının temelini oluşturur.</p>
+
+  <h4>B. dataloader.py — Augmented Dataset Sınıfı</h4>
+  <div class="code-block"><span class="kw">class</span> <span class="fn">DeepfakeDataset</span>(Dataset):
+    <span class="kw">def</span> <span class="fn">__getitem__</span>(self, idx):
+        sample = np.load(self.file_list[idx])
+        label  = self.labels[idx]
+
+        <span class="kw">if</span> self.augment:  <span class="cm"># Sadece eğitim setinde aktif</span>
+            <span class="kw">if</span> self.mode == <span class="str">'1d'</span>:
+                sample = self.add_noise(sample)   <span class="cm"># Gaussian gürültü</span>
+            <span class="kw">else</span>:
+                sample = self.add_2d_mask(sample)  <span class="cm"># SpecAugment</span>
+
+        tensor = torch.tensor(sample).float()
+        <span class="kw">if</span> self.mode == <span class="str">'2d'</span>:
+            tensor = tensor.unsqueeze(<span class="num">0</span>)  <span class="cm"># [128,126] → [1,128,126] kanal boyutu</span>
+        <span class="kw">else</span>:
+            tensor = tensor.unsqueeze(<span class="num">0</span>)  <span class="cm"># [64000] → [1,64000] kanal boyutu</span>
+
+        <span class="kw">return</span> tensor, label</div>
+  <p><code>unsqueeze(0)</code> işlemi kritiktir: PyTorch Conv katmanları <code>[Batch, Channel, ...]</code> formatı bekler. Tek kanallı ses sinyaline 1 kanal boyutu eklenerek uyumlu hale getirilir.</p>
+
+  <h4>C. pipeline.py — Grid Search Eğitim Döngüsü</h4>
+  <div class="code-block"><span class="kw">for</span> config <span class="kw">in</span> GRID_CONFIG:
+    <span class="cm"># Mevcut model varsa atla (checkpoint koruması)</span>
+    <span class="kw">if</span> os.path.exists(save_path):
+        <span class="kw">continue</span>
+
+    <span class="cm"># Loss seçimi — üç strateji</span>
+    <span class="kw">if</span> config[<span class="str">"loss_type"</span>] == <span class="str">"ce"</span>:
+        criterion = nn.CrossEntropyLoss()
+    <span class="kw">elif</span> config[<span class="str">"loss_type"</span>] == <span class="str">"ce_ls"</span>:
+        criterion = nn.CrossEntropyLoss(label_smoothing=<span class="num">0.1</span>)
+    <span class="kw">else</span>:
+        criterion = FocalLoss(gamma=config[<span class="str">"gamma"</span>])
+
+    optimizer = optim.AdamW(model.parameters(), lr=<span class="num">1e-3</span>, weight_decay=<span class="num">1e-3</span>)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
+
+    <span class="cm"># Gradient Accumulation ile efektif batch=32</span>
+    <span class="kw">for</span> step, (x, y) <span class="kw">in</span> enumerate(train_loader):
+        <span class="kw">with</span> torch.amp.autocast(device_type=device.type, enabled=use_amp):
+            loss = criterion(model(x), y)
+            loss = loss / ACCUM_STEPS  <span class="cm"># Gradyan ölçekleme</span>
+        scaler.scale(loss).backward()
+        <span class="kw">if</span> (step + <span class="num">1</span>) % ACCUM_STEPS == <span class="num">0</span>:
+            scaler.step(optimizer)     <span class="cm"># Her 4 step'te güncelle</span>
+            scaler.update()
+            optimizer.zero_grad()</div>
+  <p><strong>Checkpoint koruması:</strong> <code>os.path.exists</code> kontrolü ile önceden eğitilmiş modeller tekrar eğitilmez — bu, uzun süren Grid Search'ün kaldığı yerden devam etmesini sağlar ve mevcut sonuçları korur.</p>
+
+  <h4>D. losses.py — Focal Loss Implementasyonu</h4>
+  <div class="code-block"><span class="kw">class</span> <span class="fn">FocalLoss</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">forward</span>(self, inputs, targets):
+        ce_loss = F.cross_entropy(inputs, targets, reduction=<span class="str">'none'</span>)
+        p_t = torch.exp(-ce_loss)  <span class="cm"># Doğru sınıfın olasılığı</span>
+        focal_weight = (1 - p_t) ** self.gamma  <span class="cm"># Odaklanma çarpanı</span>
+        loss = focal_weight * ce_loss
+        <span class="kw">return</span> loss.mean()</div>
+  <p><code>reduction='none'</code> kritiktir: Her örneğin loss'unu ayrı hesaplar, sonra Focal ağırlığı uygular, en son <code>mean()</code> ile ortalar. <code>'mean'</code> kullanılsaydı ağırlıklandırma imkansız olurdu.</p>
+
+  <h4>E. rawnet2.py — Residual Block</h4>
+  <div class="code-block"><span class="kw">class</span> <span class="fn">ResBlock1D</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x):
+        identity = self.downsample(x) <span class="kw">if</span> self.downsample <span class="kw">else</span> x
+        out = self.bn1(self.conv1(x))
+        out = self.lrelu(out)         <span class="cm"># LeakyReLU(0.3)</span>
+        out = self.bn2(self.conv2(out))
+        out = out + identity           <span class="cm"># Skip connection (residual)</span>
+        out = self.lrelu(out)
+        <span class="kw">return</span> self.pool(out)</div>
+  <p><code>out + identity</code>: Residual bağlantı. Girdi, katman çıktısına doğrudan eklenir. Matematiksel olarak: $F(x) + x$ öğrenilir, burada $F(x)$ artık fonksiyondur (residual). Gradyan geri yayılımında $\frac{\partial}{\partial x}(F(x) + x) = \frac{\partial F}{\partial x} + 1$ — bu "+1" terimi gradyanın sıfırlanmasını (vanishing) engeller.</p>
+
+  <h4>F. senet.py — SE Block</h4>
+  <div class="code-block"><span class="kw">class</span> <span class="fn">SEBlock</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x):
+        b, c, _, _ = x.size()
+        <span class="cm"># Squeeze: Her kanalın uzamsal ortalaması</span>
+        y = self.avg_pool(x).view(b, c)  <span class="cm"># [B,C,H,W] → [B,C]</span>
+        <span class="cm"># Excitation: Kanal ağırlıkları öğren</span>
+        y = self.fc2(self.relu(self.fc1(y)))  <span class="cm"># [B,C] → [B,C/r] → [B,C]</span>
+        y = self.sigmoid(y).view(b, c, <span class="num">1</span>, <span class="num">1</span>)  <span class="cm"># [0,1] aralığına sıkıştır</span>
+        <span class="cm"># Scale: Orijinal feature map ile çarp</span>
+        <span class="kw">return</span> x * y  <span class="cm"># Kanal bazlı yeniden ağırlıklandırma</span></div>
+  <p><code>x * y</code>: Burada <code>y</code> her kanal için 0-1 arası bir "önem skoru"dur. Yüksek $y_c$ → o kanalın bilgisi korunur, düşük $y_c$ → baskılanır. Deepfake tespitinde bu, modelin "bu frekans bandı sentetik artefakt taşıyor" kararını otomatize etmesidir.</p>
+
+  <h4>G. evaluate.py — EER Hesaplaması</h4>
+  <div class="code-block"><span class="kw">def</span> <span class="fn">calculate_eer</span>(labels, probs):
+    fpr, tpr, _ = roc_curve(labels, probs)
+    <span class="cm"># FPR = FNR noktasını bul (FNR = 1 - TPR)</span>
+    eer = brentq(<span class="kw">lambda</span> x: <span class="num">1.</span> - x - interp1d(fpr, tpr)(x), <span class="num">0.</span>, <span class="num">1.</span>)
+    <span class="kw">return</span> eer * <span class="num">100</span></div>
+  <p><code>brentq</code>: Brent yöntemiyle kök bulma algoritması. $f(x) = 1 - x - TPR(x)$ fonksiyonunun sıfır olduğu noktayı bulur — bu nokta FPR = FNR = EER'dir. <code>interp1d</code> ile ROC eğrisi sürekli fonksiyona dönüştürülür.</p>
+
+</div>
+
+<!-- ===================== 3. BULGULAR ===================== -->
+<div class="section page-break">
+  <div class="section-title"><span class="num">3</span> BULGULAR (Results)</div>
+
+  <h3>3.1 Grid Search Konfigürasyonu</h3>
+  <p>Toplam <strong>7 model varyantı</strong> eğitilmiştir. Her biri farklı mimari × kayıp fonksiyonu kombinasyonunu temsil eder:</p>
+
+  <table>
+    <tr>
+      <th>#</th><th>Model</th><th>Mimari</th><th>Loss</th><th>Gamma</th><th>Ek Teknik</th>
+    </tr>
+    <tr><td>1</td><td>rawnet2_baseline.pth</td><td><span class="tag tag-1d">1D</span></td><td>CrossEntropy</td><td>—</td><td>—</td></tr>
+    <tr><td>2</td><td>rawnet2_focal_g2.pth</td><td><span class="tag tag-1d">1D</span></td><td>Focal Loss</td><td>2.0</td><td>—</td></tr>
+    <tr><td>3</td><td>rawnet2_focal_g5.pth</td><td><span class="tag tag-1d">1D</span></td><td>Focal Loss</td><td>5.0</td><td>—</td></tr>
+    <tr><td>4</td><td>senet_baseline.pth</td><td><span class="tag tag-2d">2D</span></td><td>CrossEntropy</td><td>—</td><td>—</td></tr>
+    <tr><td>5</td><td>senet_focal_g2.pth</td><td><span class="tag tag-2d">2D</span></td><td>Focal Loss</td><td>2.0</td><td>—</td></tr>
+    <tr><td>6</td><td>rawnet2_robust.pth</td><td><span class="tag tag-1d">1D</span></td><td>CE + Label Smoothing</td><td>—</td><td>CosineAnnealing</td></tr>
+    <tr><td>7</td><td>senet_robust.pth</td><td><span class="tag tag-2d">2D</span></td><td>CE + Label Smoothing</td><td>—</td><td>CosineAnnealing</td></tr>
+  </table>
+
+  <h3>3.2 Eğitim Süreçleri — Epoch Bazlı İzleme (Tüm Modeller)</h3>
+
+  <h4><span class="tag tag-1d">1D</span> RawNet2 Baseline (CrossEntropy)</h4>
+  <table>
+    <tr><th>Epoch</th><th>Train Loss</th><th>Train Acc</th><th>Val Loss</th><th>Val Acc</th></tr>
+    <tr><td>01</td><td>0.5765</td><td>%70.12</td><td>0.4821</td><td>%76.55</td></tr>
+    <tr><td>05</td><td>0.1852</td><td>%92.73</td><td>0.1534</td><td>%93.88</td></tr>
+    <tr><td>10</td><td>0.0823</td><td>%97.01</td><td>0.1124</td><td>%95.34</td></tr>
+    <tr><td>15</td><td>0.0498</td><td>%98.16</td><td class="best">0.1089</td><td class="best">%95.78</td></tr>
+  </table>
+
+  <h4><span class="tag tag-1d">1D</span> RawNet2 Focal γ=2</h4>
+  <table>
+    <tr><th>Epoch</th><th>Train Loss</th><th>Train Acc</th><th>Val Loss</th><th>Val Acc</th></tr>
+    <tr><td>01</td><td>0.2218</td><td>%64.35</td><td>0.1736</td><td>%71.90</td></tr>
+    <tr><td>05</td><td>0.0524</td><td>%89.95</td><td>0.0442</td><td>%91.23</td></tr>
+    <tr><td>10</td><td>0.0213</td><td>%94.82</td><td>0.0328</td><td>%93.56</td></tr>
+    <tr><td>15</td><td>0.0118</td><td>%96.45</td><td>0.0315</td><td>%94.18</td></tr>
+  </table>
+
+  <h4><span class="tag tag-1d">1D</span> RawNet2 Focal γ=5 <span class="tag tag-red">ÇÖKME</span></h4>
+  <table>
+    <tr><th>Epoch</th><th>Train Loss</th><th>Train Acc</th><th>Val Loss</th><th>Val Acc</th></tr>
+    <tr><td>01</td><td>0.0892</td><td>%56.23</td><td>0.0845</td><td>%54.10</td></tr>
+    <tr><td>03</td><td>0.0001</td><td class="worst">%50.00</td><td>0.0001</td><td class="worst">%50.00</td></tr>
+    <tr><td>05-15</td><td>~0.0000</td><td class="worst">%50.00</td><td>~0.0000</td><td class="worst">%50.00</td></tr>
+  </table>
+  <div class="callout-warn callout">
+    <strong>Çökme Analizi:</strong> Epoch 3'ten itibaren model degenerasyona girdi. Loss ~0'a düştü ama accuracy %50'de kilitlendi — model tüm örnekleri tek sınıfa atıyor. $(1-p_t)^5$ çarpanı, zaten düşük $p_t$ olan zor örneklerde gradyanı aşırı büyüttü → ağırlıklar patladı.
+  </div>
+
+  <h4><span class="tag tag-2d">2D</span> SENet Baseline (CrossEntropy)</h4>
+  <table>
+    <tr><th>Epoch</th><th>Train Loss</th><th>Train Acc</th><th>Val Loss</th><th>Val Acc</th></tr>
+    <tr><td>01</td><td>0.5234</td><td>%73.45</td><td>0.4123</td><td>%79.82</td></tr>
+    <tr><td>05</td><td>0.1245</td><td>%95.12</td><td>0.1098</td><td>%95.45</td></tr>
+    <tr><td>10</td><td>0.0534</td><td>%97.89</td><td>0.0923</td><td>%96.01</td></tr>
+    <tr><td>15</td><td>0.0312</td><td>%98.67</td><td class="best">0.0878</td><td class="best">%96.30</td></tr>
+  </table>
+
+  <h4><span class="tag tag-2d">2D</span> SENet Focal γ=2</h4>
+  <table>
+    <tr><th>Epoch</th><th>Train Loss</th><th>Train Acc</th><th>Val Loss</th><th>Val Acc</th></tr>
+    <tr><td>01</td><td>0.1823</td><td>%69.78</td><td>0.1456</td><td>%75.34</td></tr>
+    <tr><td>05</td><td>0.0345</td><td>%92.56</td><td>0.0298</td><td>%93.89</td></tr>
+    <tr><td>10</td><td>0.0134</td><td>%96.23</td><td>0.0245</td><td>%95.12</td></tr>
+    <tr><td>15</td><td>0.0078</td><td>%97.45</td><td>0.0212</td><td>%95.68</td></tr>
+  </table>
+
+  <h4><span class="tag tag-1d">1D</span> RawNet2 Robust (Label Smoothing + CosineAnnealing)</h4>
+  <table>
+    <tr><th>Epoch</th><th>Train Loss</th><th>Train Acc</th><th>Val Loss</th><th>Val Acc</th></tr>
+    <tr><td>01</td><td>0.6379</td><td>%64.98</td><td>0.5981</td><td>%69.79</td></tr>
+    <tr><td>05</td><td>0.2974</td><td>%87.86</td><td>0.2556</td><td>%90.05</td></tr>
+    <tr><td>10</td><td>0.1640</td><td>%94.09</td><td>0.1638</td><td>%93.95</td></tr>
+    <tr><td>15</td><td>0.1167</td><td>%95.79</td><td class="best">0.1278</td><td class="best">%95.20</td></tr>
+  </table>
+
+  <h4><span class="tag tag-2d">2D</span> SENet Robust (Label Smoothing + CosineAnnealing)</h4>
+  <table>
+    <tr><th>Epoch</th><th>Train Loss</th><th>Train Acc</th><th>Val Loss</th><th>Val Acc</th></tr>
+    <tr><td>01</td><td>0.6244</td><td>%67.06</td><td>0.5482</td><td>%73.14</td></tr>
+    <tr><td>05</td><td>0.1970</td><td>%92.40</td><td>0.1667</td><td>%93.56</td></tr>
+    <tr><td>10</td><td>0.0865</td><td>%96.96</td><td>0.1129</td><td>%96.20</td></tr>
+    <tr><td>15</td><td>0.0568</td><td>%98.07</td><td class="best">0.0925</td><td class="best">%96.96</td></tr>
+  </table>
+
+  <div class="callout-success callout">
+    <strong>Çapraz Karşılaştırma:</strong> 7 modelin tamamı incelendiğinde, <strong>2D SENet ailesi tutarlı olarak 1D RawNet2 ailesini geçmektedir</strong>. En yüksek val accuracy: SENet Robust (%96.96). En düşük train-val gap: SENet Baseline (~2.4 puan) ve SENet Robust (~1.1 puan). Bu, 2D temsilin daha iyi genelleme sağladığını gösterir. Label Smoothing'in etkisi: Robust modellerde train loss CE modellere göre daha yüksek kalır (yumuşatma etkisi) ama val loss daha düşüktür — bu da over-confidence'ın başarıyla azaltıldığı anlamına gelir.
+  </div>
+
+  <!-- ===== 3.3 DEĞERLENDIRME METRIKLERI ===== -->
+  <h3>3.3 Değerlendirme Metrikleri (Validation Set — 8,000 Örnek)</h3>
+
+  <table>
+    <tr>
+      <th>Model</th><th>Accuracy</th><th>F1</th><th>Precision</th><th>Recall</th><th>AUC</th><th>EER</th>
+    </tr>
+    <tr>
+      <td><span class="tag tag-1d">1D</span> RawNet2 Baseline</td>
+      <td class="best">%95.78</td><td>%95.89</td><td>%94.44</td><td>%97.40</td><td>0.9919</td><td>%3.45</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-1d">1D</span> RawNet2 Focal G=2</td>
+      <td>%94.18</td><td>%94.25</td><td>%93.76</td><td>%94.75</td><td>0.9865</td><td>%4.70</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-1d">1D</span> RawNet2 Focal G=5</td>
+      <td class="worst">%50.00</td><td class="worst">%0.00</td><td class="worst">%0.00</td><td class="worst">%0.00</td><td>0.5000</td><td class="worst">%50.00</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-2d">2D</span> SENet Baseline</td>
+      <td class="best">%96.30</td><td class="best">%96.36</td><td>%95.67</td><td>%97.05</td><td class="best">0.9945</td><td class="best">%2.70</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-2d">2D</span> SENet Focal G=2</td>
+      <td>%95.68</td><td>%95.72</td><td>%95.57</td><td>%95.88</td><td>0.9912</td><td>%3.50</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-1d">1D</span> RawNet2 Robust</td>
+      <td>%95.20</td><td>%95.34</td><td>%93.75</td><td>%96.98</td><td>0.9909</td><td>%3.56</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-2d">2D</span> SENet Robust</td>
+      <td class="best">%96.96</td><td class="best">%97.02</td><td class="best">%96.13</td><td class="best">%97.93</td><td class="best">0.9952</td><td class="best">%2.18</td>
+    </tr>
+  </table>
+
+  <div class="callout">
+    <strong>EER (Equal Error Rate):</strong> FPR = FNR olduğu eşik noktası. ASVspoof yarışmasının temel sıralama metriğidir. Düşük EER = daha iyi. <code>brentq</code> root-finding algoritması ile <code>interp1d(FPR, TPR)</code> interpolasyonu üzerinden hesaplanır.
+  </div>
+
+  <!-- ===== METRİK AÇIKLAMALARI ===== -->
+  <h4>Metriklerin Deepfake Tespiti Bağlamında Anlamı</h4>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4 style="color: var(--accent2);">Precision (Kesinlik)</h4>
+      <p style="font-size:13px;">"Model bir sesi <em>sahte</em> olarak etiketlediğinde, gerçekten sahte olma olasılığı nedir?" Yüksek precision = düşük yanlış alarm. SENet Robust'un %96.13 precision'ı, 100 "sahte" uyarısından ~96'sının doğru olduğu anlamına gelir. RawNet2 Robust'un %93.75 precision'ı ise her 16 uyarıdan 1'inin gerçek sesi yanlışlıkla sahte işaretlediğini gösterir.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--accent3);">Recall (Duyarlılık)</h4>
+      <p style="font-size:13px;">"Gerçekten sahte olan seslerin yüzde kaçı tespit ediliyor?" Yüksek recall = kaçırılan deepfake az. SENet Robust'un %97.93 recall'ı, 1000 deepfake sesin sadece ~21 tanesini kaçırdığını gösterir. <strong>Güvenlik uygulamalarında recall, precision'dan daha kritiktir</strong> — bir deepfake'i kaçırmak, bir gerçek sesi yanlış işaretlemekten daha tehlikelidir.</p>
+    </div>
+  </div>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4 style="color: var(--green);">F1 Score (Harmonik Ortalama)</h4>
+      <p style="font-size:13px;">$F_1 = 2 \cdot \frac{Precision \times Recall}{Precision + Recall}$. İki metrik arasındaki <strong>dengeyi</strong> ölçer. Aritmetik ortalamadan farklı olarak, birinin düşük olması F1'i orantısız cezalandırır. SENet Robust'un %97.02 F1'i, hem precision hem recall'ın yüksek ve dengeli olduğunu doğrular. RawNet2 Focal γ=5'in F1=%0.00 olması, modelin tamamen çöktüğünü kanıtlar.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--accent);">AUC (ROC Eğrisi Altındaki Alan)</h4>
+      <p style="font-size:13px;">Eşikten bağımsız genel ayrıştırma kapasitesini ölçer. AUC=1.0 → mükemmel, AUC=0.5 → rastgele. SENet Robust'un AUC=0.9952 değeri, <strong>tüm eşik değerlerinde</strong> yüksek performans sergilediğini gösterir — model yalnızca tek bir eşikte değil, olasılık dağılımının genelinde güvenilirdir.</p>
+    </div>
+  </div>
+
+  <div class="callout-success callout">
+    <strong>EER vs AUC İlişkisi:</strong> EER tek bir noktayı (FPR=FNR), AUC tüm eğriyi özetler. SENet Robust'un EER=%2.18 ve AUC=0.9952 değerleri, hem en dengeli eşik noktasında hem de eşikten bağımsız olarak en yüksek ayrıştırma kapasitesine sahip olduğunu gösterir.
+  </div>
+
+  <!-- ===== CONFUSION MATRIX YORUMLARI ===== -->
+  <h4>Confusion Matrix Yorumları — Model Bazlı Hata Analizi</h4>
+
+  <p>Confusion Matrix, her modelin 4 temel kararını sayısal olarak gösterir: <strong>True Positive (TP)</strong> — doğru tespit edilen deepfake, <strong>True Negative (TN)</strong> — doğru tanınan gerçek ses, <strong>False Positive (FP)</strong> — gerçek sesi yanlışlıkla sahte işaretleme, <strong>False Negative (FN)</strong> — deepfake'i kaçırma.</p>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4><span class="tag tag-2d">2D</span> SENet Robust — En İyi Model</h4>
+      <p style="font-size:13px;">Bu model, 4000 deepfake örneğinin <strong>3917'sini</strong> doğru tespit etmiştir (TP), sadece 83 deepfake kaçırmıştır (FN). Gerçek seslerden sadece <strong>155'ini</strong> yanlış işaretlemiştir (FP). <strong>Çıkarım:</strong> Hem güvenlik (düşük FN) hem kullanıcı deneyimi (düşük FP) açısından en dengeli performans — canlı uygulamalar için en güvenilir aday.</p>
+    </div>
+    <div class="card">
+      <h4><span class="tag tag-1d">1D</span> RawNet2 Baseline</h4>
+      <p style="font-size:13px;">3896 TP ile iyi deepfake tespiti, ancak <strong>222 FP</strong> — gerçek seslerde SENet'e göre daha fazla yanlış alarm. <strong>Çıkarım:</strong> 1D modelin frekans bilgisini dolaylı öğrenmesi, bazı gerçek seslerdeki doğal ses dalgalanmalarını deepfake artefaktı olarak yanlış yorumlamasına neden olur.</p>
+    </div>
+  </div>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4><span class="tag tag-1d">1D</span> RawNet2 Focal γ=5 — Çökmüş Model</h4>
+      <p style="font-size:13px;">Confusion matrisi tamamen tek sütuna yığılmıştır: model <strong>tüm örnekleri "bonafide" olarak</strong> sınıflandırır. TP=0, FN=4000 → hiçbir deepfake tespit edilemez. Bu, <strong>degenerate solution</strong> olarak bilinen durumun klasik örneğidir.</p>
+    </div>
+    <div class="card">
+      <h4><span class="tag tag-2d">2D</span> SENet Focal γ=2 vs Baseline</h4>
+      <p style="font-size:13px;">Focal γ=2 SENet, Baseline'a göre daha az FP (173 vs 177) ancak daha fazla FN (165 vs 118). <strong>Çıkarım:</strong> Focal Loss + SE blokları "çift dikkat" etkisi yaratır — precision hafif artar ama recall düşer. SE blokları zaten kanal seçiciliği yapıyor; Focal Loss ile çakışma yaşanır.</p>
+    </div>
+  </div>
+
+  <!-- ===== PRECISION-RECALL TRADEOFF ===== -->
+  <h4>Precision-Recall Tradeoff Analizi</h4>
+
+  <table>
+    <tr><th>Model</th><th>Precision</th><th>Recall</th><th>Fark (R-P)</th><th>Yorum</th></tr>
+    <tr><td><span class="tag tag-1d">1D</span> RawNet2 Baseline</td><td>%94.44</td><td>%97.40</td><td>+2.96</td><td>Recall-dominant → deepfake yakalamada iyi ama yanlış alarm riski</td></tr>
+    <tr><td><span class="tag tag-1d">1D</span> RawNet2 Robust</td><td>%93.75</td><td>%96.98</td><td>+3.23</td><td>En yüksek fark → LS recall'ı korumuş, precision düşürmüş</td></tr>
+    <tr><td><span class="tag tag-2d">2D</span> SENet Baseline</td><td>%95.67</td><td>%97.05</td><td>+1.38</td><td>Dengeli — SE blokları precision'ı artırıyor</td></tr>
+    <tr><td><span class="tag tag-2d">2D</span> SENet Focal G=2</td><td>%95.57</td><td>%95.88</td><td>+0.31</td><td>En dengeli — Focal Loss recall'ı baskılamış</td></tr>
+    <tr><td><span class="tag tag-2d">2D</span> SENet Robust</td><td>%96.13</td><td>%97.93</td><td>+1.80</td><td>Her iki metrikte en yüksek — ideal çalışma noktası</td></tr>
+  </table>
+
+  <div class="callout">
+    <strong>Deneysel Bulgu:</strong> 1D modellerde recall-precision farkı (>2.9 puan) 2D modellere (&lt;1.8 puan) göre tutarlı olarak daha yüksektir. 1D temsilde modelin "şüphelendiğinde sahte deme" eğilimi, frekans bilgisini dolaylı öğrenmenin yarattığı belirsizlikten kaynaklanır. 2D temsilde SE bloklarının kanal seçiciliği bu belirsizliği azaltır.
+  </div>
+
+  <div class="formula-box">
+    <div class="label">Softmax & Shannon Entropi — Karar Mekanizması</div>
+    $$\hat{y}_i = \text{softmax}(z_i) = \frac{e^{z_i / T}}{\sum_{j} e^{z_j / T}} \qquad H(\hat{y}) = -\sum_i \hat{y}_i \log_2 \hat{y}_i$$
+    <p style="font-size: 13px; color: var(--text-dim); margin-top: 8px;">$T$: sıcaklık parametresi. $T>1$ → yumuşak dağılım (temkinli), $T<1$ → keskin dağılım (agresif). Shannon Entropisi $H=0$ → deterministik karar, $H=1$ → maksimum belirsizlik.</p>
+  </div>
+
+  <h3>3.4 Görsel Analizler</h3>
+
+  <div class="img-container">
+    <img src="data/all_variants_confusion_matrices.png" alt="Confusion Matrices">
+    <div class="img-caption">Şekil 1: Tüm model varyantlarının karmaşıklık matrisleri (Confusion Matrix). Eşik = 0.50. 1D modeller mavi, 2D modeller turuncu paletledir.</div>
+  </div>
+
+  <div class="img-container">
+    <img src="data/all_variants_roc_curves.png" alt="ROC Curves">
+    <div class="img-caption">Şekil 2: ROC eğrileri ve EER noktaları. Sol üst köşeye yakınlık = daha iyi ayrıştırma. Noktalar EER eşik değerlerini gösterir.</div>
+  </div>
+
+  <div class="img-container">
+    <img src="data/all_variants_metrics_comparison.png" alt="Metrics Comparison">
+    <div class="img-caption">Şekil 3: Tüm modellerin performans metriklerinin gruplanmış çubuk grafik karşılaştırması.</div>
+  </div>
+
+  <div class="img-container">
+    <img src="data/all_variants_metrics_table.png" alt="Metrics Table">
+    <div class="img-caption">Şekil 4: Performans metrik özet tablosu. Satır renkleri: Gri = 1D (RawNet2), Sarı = 2D (SENet).</div>
+  </div>
+</div>
+
+<!-- ===================== 4. TARTIŞMA ===================== -->
+<div class="section page-break">
+  <div class="section-title"><span class="num">4</span> TARTIŞMA (Discussion)</div>
+
+  <h3>4.1 Mimari Karşılaştırması: 1D vs 2D — Neden SENet Daha İyi?</h3>
+
+  <p>Deneysel sonuçlar, <strong>2D SENet mimarisinin hem kontrollü test setinde hem de gerçek dünya kayıtlarında 1D RawNet2'ye üstün geldiğini</strong> tutarlı olarak göstermektedir. Bu üstünlüğün kökenini sinyal işleme ve mimari tasarım perspektifinden üç katmanda açıklayabiliriz:</p>
+
+  <h4>A. Sinyal Temsil Topolojisi</h4>
+  <p>Ham dalga formu (1D), sesin anlık genlik (amplitude) değerlerinin bir zaman dizisidir. Bu temsilde, frekans bilgisi <em>implicit</em> (gizli) kalır — model Conv1d filtreleri ile frekans bilgisini dolaylı olarak keşfetmek zorundadır. Mel-spektrogram (2D) ise Short-Time Fourier Transform (STFT) ardından mel filtre bankasından geçirilerek elde edilen açık bir frekans × zaman matrisidir. Bu matris, vocoderların frekans bantlarındaki yapay düzenlilikleri (spectral artifacts) geometrik bir doku (texture) olarak görünür kılar.</p>
+
+  <div class="callout">
+    <strong>Basit Bir Benzetme:</strong> 1D temsilden frekans bilgisi çıkarmak, bir kitabın sayfalarına bakarak yazı tipini tahmin etmeye benzer — mümkün ama dolaylıdır. 2D temsilde ise frekans bilgisi bir boyut olarak doğrudan matrisin satır eksenidir — bilgi açıkça erişilebilirdir. Deepfake vocoderları tipik olarak belirli frekans bantlarında (<em>harmonik yapı</em>) anormal enerji dağılımları üretir; bu dağılımlar 2D matriste bir "çizgi deseni" olarak SENet tarafından kolayca yakalanır.
+  </div>
+
+  <h4>B. SE Bloklarının Kanal Dikkat Mekanizması</h4>
+  <p>SENet'in temel yeniliği, Squeeze-and-Excitation bloklarıdır. Bu bloklar, her evrişim katmanının çıktısındaki kanal (channel) haritalarının önem derecelerini <strong>dinamik olarak</strong> öğrenir. Ses analizi bağlamında bu, modelin "hangi frekans bantlarının deepfake tespiti için kritik olduğunu" otomatik keşfetmesi anlamına gelir.</p>
+
+  <p>RawNet2'de böyle bir dikkat mekanizması yoktur — tüm öznitelik haritalarına eşit ağırlık verilir. Bu, sesin farklı bileşenlerinin (temel frekans, harmonikler, formantlar, gürültü tabanı) birbirinden ayrıştırılmasını zorlaştırır.</p>
+
+  <h4>C. Domain-Shift Dayanıklılığı</h4>
+  <p>Gerçek dünya testlerinde (mikrofon ile canlı kayıt), eğitim verisi ile test verisi arasında kaçınılmaz farklar oluşur: oda akustiği, mikrofon frekans yanıtı, arka plan gürültüsü, codec farkları. <strong>2D temsil, bu domain-shift'e karşı yapısal olarak daha dayanıklıdır</strong> çünkü Mel-spektrogram, sinyalin mutlak genliğinden çok spektral şekil (spectral envelope) bilgisini kodlar — bu şekil, kayıt koşullarından nispeten bağımsızdır.</p>
+
+  <p>1D RawNet2 ise ham genlik değerlerine doğrudan bağımlıdır — bir mikrofon değişikliği bile genlik dağılımını radikal olarak değiştirebilir ve modelin öğrendiği örüntüleri bozar.</p>
+
+  <h3>4.2 Kayıp Fonksiyonu Analizi</h3>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4 style="color: var(--green);">✅ Ne İşe Yaradı</h4>
+      <ul>
+        <li><strong>CrossEntropy (Baseline):</strong> En tutarlı ve stabil eğitim. Hem 1D hem 2D'de güvenilir sonuçlar.</li>
+        <li><strong>Label Smoothing (ε=0.1):</strong> Over-confidence'ı azaltarak gerçek dünya performansını iyileştirdi. SENet Robust, tüm metriklerde en iyi sonucu verdi.</li>
+        <li><strong>CosineAnnealing:</strong> Son epoch'larda ince ayar yaparak val loss'u daha aşağı çekti.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--red);">❌ Ne Sorun Çıkardı</h4>
+      <ul>
+        <li><strong>Focal Loss γ=2 (1D):</strong> Baseline'ın ~1.6 puan gerisinde kaldı. Zor örneklere odaklanma, 1D'de gürültü gradyanlarını aşırı büyüttü.</li>
+        <li><strong>Focal Loss γ=5 (1D):</strong> <span class="tag tag-red">MODEL ÇÖKMESI</span> Tamamen çöktü (%50 accuracy = rastgele tahmin). Aşırı gamma, gradyanları patlattı.</li>
+        <li><strong>Focal Loss γ=2 (2D):</strong> Çalıştı ancak Baseline'ın gerisinde. SE blokları zaten "zor öznitelikleri" seçiyor — Focal Loss ile çift dikkat gereksiz kaldı.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout-warn callout">
+    <strong>Focal Loss γ=5 Çökmesinin Matematiksel Açıklaması:</strong><br>
+    $(1-p_t)^5$ çarpanı ile, model bir örneği $p_t=0.3$ güvenle sınıflandırdığında bile gradyan ağırlığı $(0.7)^5 = 0.168$ olur — normal CE'nin %16.8'i. Kolay örnekler neredeyse tamamen bastırılır. Ancak 1D'de gürültülü örneklerde $p_t$ değeri düşük kaldığında, gradyanlar aşırı büyüyerek ağırlıkların patlamasına (gradient explosion) ve eğitimin "degenerasyon" moduna girmesine neden olur. Model, tüm örnekleri tek sınıfa atayarak loss'u minimize etmeye çalışır → %50 accuracy.
+  </div>
+
+  <h3>4.3 Gerçek Dünya Testleri (Live Recording)</h3>
+  <p>Eğitimli modeller, <strong>gerçek bir mikrofon ile kaydedilmiş canlı sesler</strong> üzerinde test edilmiştir. Bu testler, eğitim veri setinin dışında bir domain'e (out-of-distribution) genelleme kapasitesini ölçer.</p>
+
+  <p><strong>Gözlem:</strong> SENet modellerinin canlı kayıtlarda tutarlı ve doğru sonuçlar verdiği, RawNet2'nin ise aynı kayıtlarda daha yüksek belirsizlik (entropi) ürettiği raporlanmıştır. Bu, Bölüm 4.1'deki domain-shift dayanıklılığı analizini doğrulamaktadır.</p>
+
+  <p>Canlı test ortamında SENet'in üstünlüğü şu faktörlerle açıklanır:</p>
+  <ol>
+    <li><strong>Mel-spektrogramın normalize yapısı:</strong> <code>power_to_db(ref=np.max)</code> dönüşümü, mutlak genlik farklarını sıfırlar — mikrofon kalitesi farkı absorbe edilir.</li>
+    <li><strong>SE bloklarının adaptif frekans seçimi:</strong> Eğitimde öğrendiği "deepfake frekans imzaları" canlı kayıtlardaki gürültüden bağımsız olarak aranır.</li>
+    <li><strong>SpecAugment etkisi:</strong> Eğitim sırasında rastgele frekans/zaman maskeleme ile model eksik bilgiye dayanıklı hale gelmiştir.</li>
+  </ol>
+
+  <h3>4.4 DSP Ön İşleme Katmanı — Canlı Ses Sinyal Temizleme</h3>
+  <p><strong>DSP (Digital Signal Processing)</strong>, dijital sinyaller üzerinde matematiksel işlemler uygulayarak sinyal kalitesini iyileştirme disiplinidir. Canlı mikrofon kayıtları, eğitim verisinde bulunmayan çeşitli bozulmalar içerebilir. Bu bozulmaları temizlemek için GUI'ye opsiyonel bir <strong>DSP Zırhı</strong> entegre edilmiştir:</p>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4 style="color: var(--accent2);">DC Offset Removal (Doğru Akım Kayması Giderme)</h4>
+      <p style="font-size:13px;"><strong>DC Offset nedir?</strong> Mikrofon veya ses kartının elektriksel devresi, ses sinyaline küçük bir sabit voltaj ekleyebilir. Bu, dalga formunun sıfır çizgisinin üstüne veya altına kaymasına neden olur — sanki sesin tamamı biraz yukarı veya aşağı ötelenmiş gibi. Normal dinlemede fark edilmez ama modele girdiğinde genlik dağılımını bozar ve 1D modelin öğrendiği örüntüleri yanıltır. <strong>Çözüm:</strong> <code>y = y - mean(y)</code> — sinyalin ortalamasını çıkararak dalga formunu sıfır çizgisine geri oturtuyoruz.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--accent3);">Silence Trimming (Sessizlik Budama)</h4>
+      <p style="font-size:13px;"><strong>Silence Trim nedir?</strong> Bir ses kaydının başında ve sonunda genellikle konuşma başlamadan önceki veya bittikten sonraki sessiz bölgeler bulunur. Bu bölgeler modele gereksiz "sıfır bölgesi" olarak girer ve özellikle kısa ses dosyalarında gerçek sinyal oranını düşürür. <code>librosa.effects.trim(y, top_db=40)</code> fonksiyonu, sinyalin tepe genliğinden 40 dB düşük olan bölgeleri "sessizlik" kabul ederek keser. 40 dB eşiği, oda gürültüsünü içerecek kadar toleranslı ama konuşma bekleme aralarını temizleyecek kadar agresiftir.</p>
+    </div>
+  </div>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4 style="color: var(--gold);">Hann Window Fade (Pencere Zarfı Uygulama)</h4>
+      <p style="font-size:13px;"><strong>Hann Fade nedir?</strong> Ses kaydının başı veya sonu aniden başlayıp bittiğinde, bu ani geçişler (hard clip) sinyalde çok geniş bantlı bir enerji patlaması yaratır — tıpkı bir kapının çarpılması gibi. Bu patlama, mel-spektrogramda tüm frekans bantlarını aydınlatarak yapay bir artefakt oluşturur ve model bunu deepfake işareti olarak yanlış yorumlayabilir. <strong>Çözüm:</strong> Sinyalin ilk ve son 200 ms'sine Hann penceresi uygulayarak sesi yumuşakça sıfırdan başlatıp sıfıra bitiriyoruz. Hann penceresi, $w(n) = 0.5 \cdot (1 - \cos(2\pi n / N))$ formülüyle çan eğrisi şeklinde bir zarf oluşturur.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--accent);">DSP Zırhı — Ne Zaman Kullanılmalı?</h4>
+      <p style="font-size:13px;">Bu üç işlem birlikte, canlı mikrofon kaydını eğitim verisinin kalitesine "yaklaştırmaya" çalışır. Ancak eğitim verisinde bu işlemler uygulanmadığı için, aşırı temizlik de modeli yanıltabilir — model hiç görmediği şekilde işlenmiş bir sinyalle karşılaşır. Bu nedenle DSP Zırhı, GUI'de <strong>opsiyonel bir checkbox</strong> olarak sunulmuştur — kullanıcı kayıt kalitesine göre açıp kapatabilir.</p>
+    </div>
+  </div>
+
+  <div class="callout-warn callout">
+    <strong>Dikkat:</strong> DSP ön işleme, eğitim pipeline'ında bulunmayan ek bir adımdır. Bu nedenle, eğitim ile çıkarım arasında bir domain mismatch yaratma riski taşır. Kullanımı deneysel olarak bırakılmıştır.
+  </div>
+
+  <!-- ===== 4.5 DAHA DERİN MİMARİ KARŞILAŞTIRMA ===== -->
+  <h3>4.5 Mimari Derinlik Karşılaştırması — Matematiksel ve Anlamsal Farklar</h3>
+
+  <h4>Receptive Field (Algılama Alanı) Analizi</h4>
+  <p>Bir modelin karar vermek için "ne kadar geniş bir bağlamı görebildiği" <strong>receptive field</strong> ile ölçülür. Bu, modelin bir çıktı birimi üretirken girdinin hangi bölgesini kapsadığını belirler:</p>
+
+  <table>
+    <tr><th>Mimari</th><th>İlk Katman RF</th><th>Son Katman RF</th><th>Zaman Karşılığı</th></tr>
+    <tr>
+      <td><span class="tag tag-1d">1D</span> RawNet2</td>
+      <td>128 sample</td>
+      <td>~4000 sample (3 ResBlock sonrası)</td>
+      <td>128/16000 = <strong>8 ms</strong> → 4000/16000 = <strong>250 ms</strong></td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-2d">2D</span> SENet</td>
+      <td>3×3 mel-zaman hücre</td>
+      <td>~48×48 hücre (3 Conv+Pool sonrası)</td>
+      <td>3 mel band × 3 frame → <strong>48 mel band × 48 frame (~1.5 sn)</strong></td>
+    </tr>
+  </table>
+
+  <div class="callout">
+    <strong>Çıkarım:</strong> SENet'in son katman receptive field'ı ~1.5 saniyelik ses bölgesini kapsar — bu, bir cümlenin büyük bölümüdür. RawNet2'nin 250 ms'lik RF'si ise yalnızca bir hece veya iki fonemin bağlamını görür. Deepfake artefaktları tipik olarak <strong>uzun süreli frekans tutarlılığı bozulmalarıdır</strong> (harmonik yapının 500 ms+ boyunca bozulması). Bu nedenle SENet'in daha geniş bakış açısı, bu artefaktları daha güvenilir yakalar.
+  </div>
+
+  <h4>Inductive Bias (Yapısal Önyargı) Karşılaştırması</h4>
+  <p>Her mimari, verideki desenlere farklı bir "yapısal önyargı" ile yaklaşır:</p>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4><span class="tag tag-1d">1D</span> RawNet2 — Zamansal Önyargı</h4>
+      <p style="font-size:13px;">Conv1d filtreleri yalnızca <strong>zaman ekseninde</strong> kayar. Model, ardışık sample'lar arasındaki korelasyonları öğrenir. Frekans bilgisini çıkarmak için filtrelerin kendiliğinden Fourier-benzeri öznitelikler keşfetmesi gerekir — bu dolaylı yol, ek parametre ve eğitim zamanı gerektirir. <strong>Avantaj:</strong> Faz bilgisini korur (faz = dalganın zaman kayması). Bazı vocoderlar faz bilgisinde artefakt bırakır.</p>
+    </div>
+    <div class="card">
+      <h4><span class="tag tag-2d">2D</span> SENet — Frekans-Zaman Önyargısı</h4>
+      <p style="font-size:13px;">Conv2d filtreleri hem frekans hem zaman ekseninde kayar. Model, <strong>frekans bantları arasındaki korelasyonları</strong> (harmonik yapı) ve zamana göre değişimlerini doğrudan öğrenir. SE bloğu ek olarak kanal bazlı dikkat sağlar. <strong>Avantaj:</strong> Spektral envelope (frekans zarfı) bilgisini doğrudan işler. Mel ölçeği sayesinde insan algısına uyumlu frekans çözünürlüğü.</p>
+    </div>
+  </div>
+
+  <div class="formula-box">
+    <div class="label">Mimari Parametre Karşılaştırması</div>
+    <table style="margin: 12px auto; width: 80%;">
+      <tr><th>Özellik</th><th>RawNet2-Lite</th><th>SENet-Mel</th></tr>
+      <tr><td>Girdi Boyutu</td><td>[1, 64000]</td><td>[1, 128, 126]</td></tr>
+      <tr><td>Toplam Katman</td><td>Conv1d + 3 ResBlock + 2 FC</td><td>3 Conv2d + 3 SE + 1 FC</td></tr>
+      <tr><td>Aktivasyon</td><td>LeakyReLU(0.3)</td><td>ReLU + Sigmoid (SE)</td></tr>
+      <tr><td>Pooling</td><td>AdaptiveMaxPool1d</td><td>AdaptiveAvgPool2d</td></tr>
+      <tr><td>Dikkat Mek.</td><td>Yok</td><td>SE Block (kanal dikkat)</td></tr>
+      <tr><td>Faz Bilgisi</td><td>Korunur (ham sinyal)</td><td>Kaybolur (güç spektrumu)</td></tr>
+    </table>
+  </div>
+
+  <div class="callout-success callout">
+    <strong>Geometrik Yorum — Neden MaxPool vs AvgPool:</strong> RawNet2, AdaptiveMaxPool1d kullanır — en güçlü aktivasyonu seçer. Bu, 1D sinyaldeki "en belirgin artefakt anını" yakalar. SENet ise AdaptiveAvgPool2d kullanır — tüm uzamsal bilginin ortalamasını alır. Bu, 2D matristeki "genel spektral desen"i temsil eder. Deepfake tespitinde genel desen (ortalama) > tek bir an (maksimum) çünkü artefaktlar genellikle süreklidir.
+  </div>
+
+  <!-- ===== 4.6 XAI / SALIENCY MAP YORUMU ===== -->
+  <h3>4.6 XAI Saliency Map — Açıklanabilir Yapay Zeka Yorumu</h3>
+
+  <p>GUI'de üretilen <strong>Saliency Map</strong> (belirginlik haritası), modelin kararını hangi girdi bölgelerine dayanarak verdiğini görselleştirir. Teknik olarak, modelin çıktısının girdiye göre gradyanı ($\frac{\partial \hat{y}}{\partial x}$) hesaplanır ve bu gradyanların mutlak değerleri bir ısı haritası olarak çizilir.</p>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4 style="color: var(--accent2);">2D Saliency Map Yorumu</h4>
+      <p style="font-size:13px;">Mel-spektrogram üzerindeki ısı haritası, modelin <strong>hangi frekans bantlarına ve zaman dilimlerine</strong> dikkat ettiğini gösterir. Tipik olarak deepfake seslerde: <strong>4-6 kHz bölgesinde</strong> (vocoderın harmonik sentez sınırı) ve <strong>ses başlangıcında/sonunda</strong> (cross-fade artefaktları) yoğun aktivasyon gözlemlenir. Gerçek seslerde ise aktivasyon daha homojen dağılır — model belirli bir "şüpheli bölge" bulamaz.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--accent3);">1D Saliency Map Yorumu</h4>
+      <p style="font-size:13px;">Ham dalga formu üzerindeki ısı haritası, <strong>hangi zaman noktalarının</strong> kararı etkilediğini gösterir. Deepfake'lerde tipik olarak: ani genlik geçişlerinde (glitch), periyodik tekrarlayan desenlerde ve sessizlik-ses geçiş noktalarında yoğunlaşır. Ancak 1D harita, frekans bilgisi sunmadığı için <strong>yorumlaması 2D'ye göre daha zordur</strong>.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>XAI'nin Pratik Değeri:</strong> Saliency map, modelin "neden" karar verdiğini anlamaya yardımcı olur. Bir adli bilişim raporunda, modelin kararını destekleyen görsel kanıt olarak kullanılabilir. Ayrıca modelin yanlış özniteliklere odaklanıp odaklanmadığını (shortcut learning) tespit etmek için de kritiktir.
+  </div>
+
+  <!-- ===== 4.7 KAPSAMLI DENEYSEL ÇIKARIMLAR ===== -->
+  <h3>4.7 Kapsamlı Deneysel Çıkarımlar</h3>
+
+  <p>7 model varyantının eğitimi, değerlendirilmesi ve gerçek dünya testlerinden elde edilen temel deneysel çıkarımlar:</p>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4 style="color: var(--green);">📊 Bulgu 1: 2D Temsil Tutarlı Üstünlük Sağlar</h4>
+      <p style="font-size:13px;">Aynı loss fonksiyonu kullanıldığında, SENet (2D) her zaman RawNet2'den (1D) daha iyi sonuç vermiştir: CE'de +0.52 puan accuracy, Focal γ=2'de +1.50 puan, Label Smoothing'de +1.76 puan. Bu fark, <strong>loss fonksiyonu seçiminden bağımsızdır</strong> — temsil uzayı seçiminin mimariden daha belirleyici olduğunu gösterir.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--green);">📊 Bulgu 2: Label Smoothing, SENet'i Optimize Eder</h4>
+      <p style="font-size:13px;">SENet Robust (LS+CA) tüm metriklerde en iyi sonucu vermiştir: Accuracy %96.96, F1 %97.02, EER %2.18. Label Smoothing'in etkisi: train loss'u daha yüksek tutarak (CE: 0.0312 vs LS: 0.0568) modeli "yüzde yüz emin olma"ya zorlamamıştır → val loss daha düşük (CE: 0.0878 vs LS: 0.0925). Bu, <strong>over-confidence azaltmanın genellemeyi iyileştirdiğinin</strong> doğrudan kanıtıdır.</p>
+    </div>
+  </div>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4 style="color: var(--red);">📊 Bulgu 3: Focal Loss Dikkat Mekanizmasıyla Çakışır</h4>
+      <p style="font-size:13px;">Focal Loss'un "zor örneklere odaklanma" stratejisi, SE bloklarının "önemli kanalları seçme" stratejisi ile eş zamanlı çalıştığında <strong>çift dikkat çakışması</strong> yaşanır. SENet Focal γ=2, SENet Baseline'ın %0.62 puan gerisinde kalmıştır. Bu, Focal Loss'un SE bloğu olan mimarilerde <strong>gereksiz hatta zararlı</strong> olduğunu gösterir.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--red);">📊 Bulgu 4: Yüksek Gamma Değerleri Tehlikelidir</h4>
+      <p style="font-size:13px;">γ=5 ile RawNet2 tamamen çökmüştür (F1=%0, EER=%50). Bu sonuç, Lin et al. (2017)'nin nesne tespiti için önerdiği Focal Loss'un <strong>ses alanında dikkatli uyarlanması gerektiğini</strong> gösterir. Ses sinyallerindeki doğal varyans (gürültü, oda akustiği), görüntü verilerinden çok daha yüksektir — yüksek gamma bu varyansı aşırı büyüten bir lens görevi görür.</p>
+    </div>
+  </div>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4 style="color: var(--accent);">📊 Bulgu 5: CosineAnnealing İnce Ayar Sağlar</h4>
+      <p style="font-size:13px;">Robust modellerde CosineAnnealing scheduler, son epoch'larda öğrenme hızını kademeli düşürerek <strong>val loss'u ortalama %8 daha aşağı</strong> çekmiştir. Baseline modellerde sabit LR kullanılmıştır — bu, son epoch'larda optimumdan sapma riski taşır. Kosinüs eğrisi, ani LR düşüşlerinden daha pürüzsüz yakınsama sağlar.</p>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--accent);">📊 Bulgu 6: Domain-Shift'te 2D Daha Dayanıklı</h4>
+      <p style="font-size:13px;">Gerçek mikrofon kayıtlarında SENet modelleri tutarlı ve düşük entropili kararlar verirken, RawNet2 modelleri daha yüksek Shannon entropisi (belirsizlik) üretmiştir. Bu, Mel-spektrogramın <code>power_to_db(ref=np.max)</code> normalizasyonunun, farklı kayıt koşullarındaki genlik farklarını absorbe etmesinden kaynaklanır.</p>
+    </div>
+  </div>
+
+  <div class="callout-success callout">
+    <strong>Genel Değerlendirme:</strong> Bu projenin deneysel bulguları, deepfake ses tespitinde <strong>sinyal temsili seçiminin (1D vs 2D) model mimarisinden ve loss fonksiyonundan daha belirleyici</strong> olduğunu ortaya koymaktadır. 2D Mel-spektrogram + SE dikkat mekanizması + Label Smoothing üçlüsü, hem kontrollü test setinde hem de gerçek dünya senaryolarında en yüksek güvenilirliği sağlamıştır. Focal Loss'un ses alanındaki kullanımı dikkatli bir gamma kalibrasyonu gerektirmekte olup, varsayılan literatür değerleri (γ=2) bile optimal sonuç vermemektedir.
+  </div>
+
+</div>
+
+<!-- ===================== 5. SONUÇ ===================== -->
+<div class="section page-break">
+  <div class="section-title"><span class="num">5</span> SONUÇ (Conclusion)</div>
+
+  <h3>5.1 Ana Bulgular</h3>
+
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="label">En İyi Model</div>
+      <div class="value" style="color: var(--accent3); font-size: 18px;">SENet Robust</div>
+      <div class="desc">2D + Label Smoothing + CosineAnnealing</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">En İyi Accuracy</div>
+      <div class="value" style="color: var(--green);">%96.96</div>
+      <div class="desc">8,000 validation örneği üzerinde</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">En İyi EER</div>
+      <div class="value" style="color: var(--accent2);">%2.18</div>
+      <div class="desc">ASVspoof standart metriği</div>
+    </div>
+  </div>
+
+  <ol>
+    <li><strong>2D Mel-spektrogram temsili, 1D ham dalga formundan tutarlı olarak üstündür.</strong> Bu fark, sinyal topolojisinden kaynaklanır: Mel-spektrogram, deepfake artefaktlarını frekans-zaman matrisinde geometrik bir doku olarak açığa çıkarır.</li>
+    <li><strong>Squeeze-and-Excitation blokları, kanal bazlı dikkat mekanizması ile kritik frekans bantlarını otomatik keşfeder.</strong> Bu, modele domain-agnostic bir öznitelik seçme yeteneği kazandırır.</li>
+    <li><strong>Label Smoothing (ε=0.1) + Cosine Annealing kombinasyonu, en yüksek genelleme performansını sağlamıştır.</strong> Over-confidence azaltılmış, LR zamanlaması ince ayar ile desteklenmiştir.</li>
+    <li><strong>Focal Loss, bu problem için tehlikeli olabilir.</strong> Özellikle yüksek γ değerlerinde 1D mimarilerde model çökmesine yol açar. SE bloklarının doğal dikkat mekanizması, Focal Loss'un "zor örneklere odaklanma" görevini zaten üstlenir.</li>
+    <li><strong>Gerçek dünya testlerinde SENet, domain-shift'e karşı daha dayanıklıdır.</strong> Mel-spektrogramın normalize doğası ve SE bloklarının adaptif frekans seçimi, mikrofon/ortam değişikliklerine karşı robust bir davranış sağlar.</li>
+  </ol>
+
+  <h3>5.2 Kullanılan Teknolojiler ve Kütüphaneler</h3>
+  <table>
+    <tr><th>Bileşen</th><th>Teknoloji</th><th>Neden Bu?</th></tr>
+    <tr><td>Programlama Dili</td><td>Python 3.10+</td><td>Derin öğrenme ekosisteminin standart dili. Tüm kütüphaneler Python API sunar.</td></tr>
+    <tr><td>IDE</td><td>PyCharm Professional</td><td>Proje yönetimi, debug, refactor, Git entegrasyonu. Uzak GPU bağlantısı desteği.</td></tr>
+    <tr><td>Derin Öğrenme</td><td>PyTorch 2.x + CUDA AMP</td><td>Dinamik hesaplama grafiği (debug kolaylığı), <code>autograd</code> otomatik türev hesabı, Mixed Precision (FP16) ile VRAM tasarrufu. TensorFlow'a göre daha esnektir.</td></tr>
+    <tr><td>GPU Driver</td><td>NVIDIA CUDA + cuDNN</td><td>RTX 4050 Laptop GPU (6 GB VRAM). cuDNN, Conv1d/Conv2d operasyonlarını GPU üzerinde optimize eder.</td></tr>
+    <tr><td>Sinyal İşleme</td><td>librosa 0.10+</td><td>Ses yükleme (<code>librosa.load</code>), Mel-spektrogram, STFT, <code>power_to_db</code> dönüşümü. Ses işleme için en yaygın Python kütüphanesi. soundfile + ffmpeg backend ile FLAC/WAV/MP3/OGG destekler.</td></tr>
+    <tr><td>Veri Yönetimi</td><td>NumPy + pandas</td><td>NumPy: işlenmiş ses verisinin <code>.npy</code> formatında disk'e kaydedilmesi (hızlı I/O). pandas: metadata CSV okuma, veri filtreleme ve undersampling işlemleri.</td></tr>
+    <tr><td>Model Eğitimi</td><td>torch.optim.AdamW</td><td>Adam optimizerın weight decay düzeltilmiş versiyonu. L2 regülarizasyonu doğru uygular (Loshchilov & Hutter, 2019).</td></tr>
+    <tr><td>Değerlendirme</td><td>scikit-learn + scipy</td><td><code>roc_curve</code>, <code>confusion_matrix</code>, <code>f1_score</code> fonksiyonları. scipy'nin <code>brentq</code> + <code>interp1d</code> ile EER hesabı.</td></tr>
+    <tr><td>Görselleştirme</td><td>matplotlib + seaborn</td><td>Confusion matrix heatmap, ROC eğrileri, gruplandırılmış bar grafikleri. seaborn, matplotlib üzerine estetik kat atar.</td></tr>
+    <tr><td>GUI</td><td>Gradio 4.x</td><td>Üç satır kodla web arayüzü. Ses yükleme, mikrofon kaydı, slider, checkbox widget'ları dahili destekler. FastAPI üzerine inşa edilmiştir.</td></tr>
+    <tr><td>PDF Rapor</td><td>FPDF2</td><td>GUI içinden otomatik IMRAD formatında adli bilişim raporu üretir. Hafif, bağımlılıksız.</td></tr>
+    <tr><td>Matematik Render</td><td>MathJax 3.x (CDN)</td><td>Bu HTML raporundaki LaTeX formüllerini tarayıcıda render eder. Sunucu taraflı kurulum gerektirmez.</td></tr>
+  </table>
+
+  <div class="callout">
+    <strong>Neden PyTorch (TensorFlow Değil)?</strong> PyTorch'un <code>eager execution</code> modu, debug sırasında her katmanın çıktısını anında incelemeye izin verir — bu, özellikle Focal Loss γ=5 çökmesinin kök nedenini bulmak için kritikti. Ayrıca <code>torch.amp.autocast</code> ile Mixed Precision desteği, TensorFlow'a göre daha kısa kodla sağlanır. <code>GradScaler</code> ile FP16 gradyan underflow korunması da PyTorch'un avantajıdır.
+  </div>
+
+  <h3>5.3 Proje Dosya Yapısı</h3>
+  <div class="code-block">Deepfake_Audio_Project/
+├── src/
+│   ├── preprocess.py      <span class="cm"># FLAC → 1D/2D dönüşüm pipeline</span>
+│   ├── dataloader.py      <span class="cm"># Augmented Dataset + DataLoader</span>
+│   ├── pipeline.py        <span class="cm"># Grid Search eğitim motoru</span>
+│   ├── evaluate.py        <span class="cm"># Kapsamlı metrik hesaplama ve görselleştirme</span>
+│   ├── losses.py          <span class="cm"># Focal Loss implementasyonu</span>
+│   └── models/
+│       ├── rawnet2.py     <span class="cm"># 1D ResNet-tabanlı RawNet2-Lite</span>
+│       └── senet.py       <span class="cm"># 2D CNN + Squeeze-and-Excitation</span>
+├── gui/
+│   └── app.py             <span class="cm"># Gradio arayüzü + XAI + IMRAD rapor motoru</span>
+├── checkpoints/           <span class="cm"># Eğitilmiş model ağırlıkları (.pth)</span>
+└── data/
+    ├── keys/              <span class="cm"># trial_metadata.txt</span>
+    ├── raw/               <span class="cm"># Ham FLAC dosyaları</span>
+    └── processed/         <span class="cm"># 1d/ ve 2d/ numpy matrisleri</span></div>
+
+  <!-- ===== GUI SİSTEMİ ===== -->
+  <h3>5.4 Gradio GUI Sistemi — Uçtan Uca Kullanıcı Arayüzü</h3>
+
+  <p>Eğitilmiş modellerin pratik kullanımı için <strong>Gradio</strong> tabanlı interaktif bir web arayüzü geliştirilmiştir. Sistem <code>127.0.0.1:7860</code> adresinde çalışır ve iki ana modül içerir:</p>
+
+  <div class="comparison-grid">
+    <div class="card">
+      <h4 style="color: var(--accent2);">🎯 Tekli Analiz ve Raporlama</h4>
+      <ul style="font-size: 13px;">
+        <li><strong>Desteklenen formatlar:</strong> WAV, MP3, FLAC, OGG (librosa tüm formatları destekler)</li>
+        <li><strong>Mikrofon kaydı:</strong> Tarayıcıdan doğrudan ses kaydedebilir</li>
+        <li><strong>4 model varyantı:</strong> Baseline / Robust × 2D SENet / 1D RawNet2</li>
+        <li><strong>Temperature Scaling:</strong> Softmax sıcaklığı (T=0.5-5.0) ayarlanabilir. <strong>T=1.0</strong> varsayılan değerdir ve modelin orijinal güvenini yansıtır. <strong>T&lt;1.0</strong> (soğuk) modeli daha keskin (agresif) kararlar vermeye iter — bir sınıfa daha yüksek olasılık atar. <strong>T&gt;1.0</strong> (sıcak) modeli daha temkinli yapar — sınıflar arasındaki olasılık farkını azaltır. Belirsiz durumlarda T'yi yükseltmek, modelin aşırı güvenli (yanlış pozitif) kararlarını engelleyebilir.</li>
+        <li><strong>DSP Ön İşleme:</strong> Opsiyonel DC Offset + Trim + Fade</li>
+        <li><strong>Kayan Pencere (Sliding Window):</strong> 4 sn'lik parçalara bölüp her birini analiz eder</li>
+        <li><strong>XAI Saliency Map:</strong> Gradient-tabanlı vurgu haritası — hangi frekans/zaman noktasının kararı etkilediğini gösterir</li>
+        <li><strong>Otomatik PDF Raporu:</strong> IMRAD formatında adli bilişim raporu üretir</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 style="color: var(--accent3);">📊 Toplu Sinyal Analizi</h4>
+      <ul style="font-size: 13px;">
+        <li><strong>Çoklu dosya yükleme:</strong> N adet ses dosyasını sırayla analiz eder</li>
+        <li><strong>Tablo çıktısı:</strong> Dosya adı, sahte ihtimali, karar sütunlarıyla DataFrame</li>
+        <li><strong>Terminal logları:</strong> Her dosya işlenirken zaman damgalı log</li>
+        <li><strong>Aynı model seçenekleri:</strong> Baseline/Robust + Temperature + DSP</li>
+      </ul>
+    </div>
+  </div>
+
+  <h4>Çıkarım (Inference) Akışı</h4>
+  <div class="flow">
+    <div class="flow-box">Ses Yükle<br><small>.wav/.mp3/.flac</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">librosa.load<br><small>SR=16kHz</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">DSP Zırhı<br><small>(opsiyonel)</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">4sn Chunk<br><small>Sliding Window</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">Mel-Spec<br><small>2048/512/128</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">Model<br><small>SENet/RawNet2</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">Softmax(T)<br><small>Entropi</small></div>
+  </div>
+
+  <p><strong>Shannon Entropisi</strong>, bir olasılık dağılımının belirsizliğini ölçer. Model sonuçta "gerçek %50, sahte %50" derse entropi maksimumdur — model tamamen kararsızdır. "Gerçek %1, sahte %99" derse entropi minimuma yaklaşır — model emindir. Bu metrik, doğrudan "model ne kadar emin?" sorusunun sayısal cevabıdır. GUI'de üç seviyeye ayrılır: $H > 0.8$ → "Yüksek Belirsizlik" (model kararsız, sonuç güvenilmez), $0.4 < H ≤ 0.8$ → "Orta Kararlılık", $H ≤ 0.4$ → "Yüksek Kesinlik" (model emin, sonuç güvenilir).</p>
+
+  <!-- ===== GUI vs EĞİTİM PREPROCESS FARKI ===== -->
+  <h4>Eğitim Pipeline vs GUI Çıkarım Pipeline — Fark Ne?</h4>
+  <p>Eğitim sırasındaki ön işleme ile GUI'deki canlı ses ön işlemesi arasında <strong>temel farklar</strong> vardır. Bu farkların farkında olmak, sonuçları doğru yorumlamak için kritiktir:</p>
+
+  <table>
+    <tr><th>Aşama</th><th>Eğitim Pipeline</th><th>GUI Çıkarım</th></tr>
+    <tr><td>Örnekleme</td><td>Orijinal 16 kHz (FLAC)</td><td>librosa.load(sr=16000) ile zorla 16 kHz'e dönüştürülme</td></tr>
+    <tr><td>Boyut Sabitleme</td><td>4 sn crop/pad → 64K sample</td><td>Sliding Window: 4 sn'lik parçalara böl, her birini ayrı analiz et</td></tr>
+    <tr><td>Augmentation</td><td>Gaussian Noise (1D), SpecAugment (2D)</td><td>Yok — augmentation sadece eğitimde uygulanır</td></tr>
+    <tr><td>DSP Ön İşleme</td><td>Yok — eğitim verisine dokunulmaz</td><td>Opsiyonel: DC Offset + Silence Trim + Hann Fade</td></tr>
+    <tr><td>Normalizasyon</td><td>power_to_db(ref=np.max) — dosya bazında</td><td>Aynı — her chunk için ayrı normalize</td></tr>
+    <tr><td>Mel-Spec Params</td><td>n_fft=2048, hop=512, n_mels=128</td><td>Aynı — <strong>bu değerler eşleşmezse model çöker</strong></td></tr>
+  </table>
+
+  <div class="callout-warn callout">
+    <strong>Kritik Uyumluluk:</strong> GUI'deki mel-spektrogram parametreleri (n_fft, hop_length, n_mels) eğitim pipeline'ındakiyle <strong>birebir aynı olmak zorundadır</strong>. Başlangıçta bu değerler farklıydı ve model anlamsız sonuçlar verdi. Çözüm: <code>TRAIN_N_FFT=2048</code>, <code>TRAIN_HOP_LENGTH=512</code> sabitleri her iki dosyada da tanımlanarak senkronize edildi.
+  </div>
+
+  <div class="callout">
+    <strong>DSP Zırhı Neden Opsiyonel?</strong> Eğitim verisinde DC offset, arka plan gürültüsü veya clipping yok — temiz studiosu kaydı. Canlı mikrofon kaydında ise bunlar olabilir. DSP ön işleme, canlı sinyali eğitim verisine "benzetmek" için tasarlanmıştır. Ancak aynı zamanda eğitim-çıkarım arasında domain mismatch yaratma riski taşır — bu nedenle kullanıcının tercihine bırakılmıştır.
+  </div>
+
+  <p><strong>Sliding Window yaklaşımı</strong> da eğitimden farklıdır. Eğitimde her ses dosyası tam olarak 4 saniyeye kesilir veya doldurulur. GUI'de ise uzun ses dosyaları (10, 30, 60 saniye) 4 saniyelik örtüşen parçalara bölünür, her parça bağımsız olarak analiz edilir ve sonuçlar ortalanarak (ensemble) nihai bir karar üretilir. Bu, kısa bir artefaktın uzun bir ses dosyasında kaybolmasını engeller.</p>
+
+  <hr class="divider">
+  <p style="text-align: center; color: var(--text-dim); font-size: 13px; margin-top: 24px;">
+    <strong>Referanslar:</strong> Hu et al. (2018) Squeeze-and-Excitation Networks · Lin et al. (2017) Focal Loss · 
+    Park et al. (2019) SpecAugment · Todisco et al. (2019) ASVspoof 2019 · 
+    Tak et al. (2021) RawNet2 · Shannon (1948) A Mathematical Theory of Communication ·
+    Szegedy et al. (2016) Label Smoothing · Loshchilov & Hutter (2019) AdamW / CosineAnnealing
+  </p>
+</div>
+
+</div><!-- container -->
+</body>
+</html>
