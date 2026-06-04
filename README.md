@@ -71,7 +71,7 @@ Cikti boyutu: `[1, 128, 126]` matrisi. Bu 2D izdusum, deepfake artefaktlarini ac
 ### 3.3. Veri Artirma (Data Augmentation)
 Yalnizca egitim setinde uygulanmistir:
 - **1D:** Gaussian gurultu ekleme (olasik = %50, genlik = 0.005 * random * max(sinyal))
-- **2D:** SpecAugment — rastgele zaman maskeleme (1-10 frame) ve frekans maskeleme (1-15 mel banti)
+- **2D:** SpecAugment - rastgele zaman maskeleme (1-10 frame) ve frekans maskeleme (1-15 mel banti)
 
 ---
 
@@ -121,7 +121,7 @@ Girdi: [Batch, 1, 128, 126]
 | Kernel boyutu | 3x3 | 2D uzayda en kucuk anlamli filtre. 3x3, hem yatay (zaman) hem dikey (frekans) komsuluk iliskisini yakalar ve hesaplama maliyeti dusuktur. |
 | Aktivasyon (ReLU) | - | 2D temsilde girdi zaten dB olceginde normalize edilmistir (negatif deger icermez). Bu nedenle negatif koruma gereksizdir ve standart ReLU yeterlidir. |
 | SE Kucultme Orani | r=16 | 128 kanalli bilgi, 8 boyutlu bir darbogazdan gecer. Bu oran, yeterli soyutlama saglarken parametre sayisini kontrol altinda tutar. r=4 (cok genis) overfitting riski tasirken, r=32 (cok dar) bilgi kaybina neden olur. |
-| Havuzlama | AdaptiveAvgPool2d | Spektrogram icin Ortalama Havuzlama, tum frekans-zaman bolgesinin genel enerji dagilimini ozetler. Max Pooling yalnizca en parlak noktayi alirken, Average tum bolgeden bilgi toplar — SE blogu bu ortalama uzerinden kanal onemini hesaplar. |
+| Havuzlama | AdaptiveAvgPool2d | Spektrogram icin Ortalama Havuzlama, tum frekans-zaman bolgesinin genel enerji dagilimini ozetler. Max Pooling yalnizca en parlak noktayi alirken, Average tum bolgeden bilgi toplar - SE blogu bu ortalama uzerinden kanal onemini hesaplar. |
 | MaxPool2d stride | 2 | Her havuzlama sonrasi uzaysal boyutlar yarilir: 128x126 -> 64x63 -> 32x31 -> 16x15. Bu piramidal kucultme, soyutlama seviyesini kademeli olarak arttirir. |
 
 **SE Blogu Isleyisi (Adim Adim):**
@@ -141,13 +141,13 @@ SE blogu, her katmanda hangi frekans kanallarinin deepfake tespiti icin daha kri
 
 ### 5.1. Test Edilen Kayip Fonksiyonlari
 
-**CrossEntropy (CE) — Temel Referans:**
+**CrossEntropy (CE) - Temel Referans:**
 ```
 L = -sum( yi * log(y_hat_i) )
 ```
 Standart siniflandirma kaybi. Model ciktisinin hedef dagilima yakinligini olcer. Tum diger kayip fonksiyonlari bu referansa gore karsilastirilmistir. Sabit ogrenme hizi ile kullanildiginda (Baseline modeller) guvenilir bir baz cizgisi olusturur.
 
-**Focal Loss — Zor Ornek Odaklanmasi:**
+**Focal Loss - Zor Ornek Odaklanmasi:**
 ```
 L = -alpha * (1 - pt)^gamma * log(pt)
 ```
@@ -155,7 +155,7 @@ Nesne tespiti icin gelistirilmis (Lin et al., 2017) bu kayip fonksiyonu, kolay s
 - `gamma=2`: Zor orneklere ilimli odaklanma. Kolay bir ornegin (pt=0.9) gradyan agirligi: (0.1)^2 = 0.01 (normal CE'nin %1'i)
 - `gamma=5`: Stres testi olarak tasarlanan ekstrem odaklanma. Ayni ornegin agirligi: (0.1)^5 = 0.00001 (fiilen sifir)
 
-**CrossEntropy + Label Smoothing — Asiri Ozguven Kirici:**
+**CrossEntropy + Label Smoothing - Asiri Ozguven Kirici:**
 ```
 y_smooth = (1 - epsilon) * y + epsilon / C       (epsilon = 0.1, C = 2)
 ```
@@ -200,7 +200,7 @@ Grid-search mantigi ile egitilen 7 model varyantinin, 8,000 ornekli dogrulama se
 | 6 | RawNet2 Focal (1D) | Focal g=2 | 94.18% | 93.76% | 94.75% | 94.25% | 0.9865 | 4.70% |
 | 7 | RawNet2 Focal (1D) | Focal g=5 | 50.00% | 0.00% | 0.00% | 0.00% | 0.5000 | 50.00% |
 
-### 6.2. Egitim Sureci — Epoch Bazli Izleme
+### 6.2. Egitim Sureci - Epoch Bazli Izleme
 
 #### RawNet2 Baseline (1D, CrossEntropy)
 | Epoch | Train Loss | Train Acc | Val Loss | Val Acc |
@@ -226,14 +226,14 @@ Grid-search mantigi ile egitilen 7 model varyantinin, 8,000 ornekli dogrulama se
 | 10 | 0.0213 | 94.82% | 0.0328 | 93.56% |
 | 15 | 0.0118 | 96.45% | 0.0315 | 94.18% |
 
-#### RawNet2 Focal g=5 (1D) — MODEL COKMESI
+#### RawNet2 Focal g=5 (1D) - MODEL COKMESI
 | Epoch | Train Loss | Train Acc | Val Loss | Val Acc |
 |:---|:---|:---|:---|:---|
 | 01 | 0.0892 | 56.23% | 0.0845 | 54.10% |
 | 03 | 0.0001 | **50.00%** | 0.0001 | **50.00%** |
 | 05-15 | ~0.0000 | **50.00%** | ~0.0000 | **50.00%** |
 
-> Epoch 3'ten itibaren model degenerasyona girmistir. Loss sifira yaklasmasina ragmen accuracy %50'de kitlenmistir — model tum ornekleri tek sinifa atamaktadir.
+> Epoch 3'ten itibaren model degenerasyona girmistir. Loss sifira yaklasmasina ragmen accuracy %50'de kitlenmistir - model tum ornekleri tek sinifa atamaktadir.
 
 #### SENet Focal g=2 (2D)
 | Epoch | Train Loss | Train Acc | Val Loss | Val Acc |
@@ -293,19 +293,19 @@ RawNet2 Baseline ve SENet Baseline arasindaki 0.75 puanlik EER farki, zaman uzay
 
 ### 7.2. Mimari ve Kayip Fonksiyonu Cikarimlari
 
-**Bulgu 1 — 2D Temsil Tutarli Ustunluk Saglar:**
-Ayni loss fonksiyonu kullanildiginda, SENet (2D) her zaman RawNet2'den (1D) daha iyi sonuc vermistir: CE'de +0.52 puan accuracy, Focal g=2'de +1.50 puan, Label Smoothing'de +1.76 puan. Bu fark, loss fonksiyonu seciminden bagimsizdir — temsil uzayi seciminin mimariden daha belirleyici oldugunu gosterir.
+**Bulgu 1 - 2D Temsil Tutarli Ustunluk Saglar:**
+Ayni loss fonksiyonu kullanildiginda, SENet (2D) her zaman RawNet2'den (1D) daha iyi sonuc vermistir: CE'de +0.52 puan accuracy, Focal g=2'de +1.50 puan, Label Smoothing'de +1.76 puan. Bu fark, loss fonksiyonu seciminden bagimsizdir - temsil uzayi seciminin mimariden daha belirleyici oldugunu gosterir.
 
-**Bulgu 2 — Label Smoothing SENet'i Optimize Eder:**
-SENet Robust (LS+CA) tum metriklerde en iyi sonucu vermistir. Label Smoothing'in etkisi: train loss'u daha yuksek tutarak (CE: 0.0312 vs LS: 0.0568) modeli "yuzde yuz emin olma"ya zorlamamistir. Val loss ise daha dusuk cikmistir — over-confidence'in basariyla azaltildigi dogrulanmistir.
+**Bulgu 2 - Label Smoothing SENet'i Optimize Eder:**
+SENet Robust (LS+CA) tum metriklerde en iyi sonucu vermistir. Label Smoothing'in etkisi: train loss'u daha yuksek tutarak (CE: 0.0312 vs LS: 0.0568) modeli "yuzde yuz emin olma"ya zorlamamistir. Val loss ise daha dusuk cikmistir - over-confidence'in basariyla azaltildigi dogrulanmistir.
 
-**Bulgu 3 — Focal Loss Dikkat Mekanizmasiyla Cakisir:**
+**Bulgu 3 - Focal Loss Dikkat Mekanizmasiyla Cakisir:**
 Focal Loss'un "zor orneklere odaklanma" stratejisi, SE bloklarinin "onemli kanallari secme" stratejisi ile es zamanli calistiginda cifte dikkat cakismasi yasanmistir. SENet Focal g=2, SENet Baseline'in %0.62 puan gerisinde kalmistir. Focal Loss, SE blogu olan mimarilerde gereksiz hatta zararlidir.
 
-**Bulgu 4 — Yuksek Gamma Degerleri Model Cokertir:**
+**Bulgu 4 - Yuksek Gamma Degerleri Model Cokertir:**
 g=5 ile RawNet2 tamamen cokmustur (F1=%0, EER=%50). `(1-pt)^5` carpani kolay orneklerin gradyan katkisini neredeyse sifirlarken, gurultulu ses orneklerinde gradyanlari kontrolsuzce buyutmustur (gradient explosion). Model tum ornekleri tek sinifa atayarak kaybi minimize etmis, accuracy %50'de kitlenmistir.
 
-**Bulgu 5 — CosineAnnealing Ince Ayar Saglar:**
+**Bulgu 5 - CosineAnnealing Ince Ayar Saglar:**
 Robust modellerde CosineAnnealing scheduler, son epoch'larda ogrenme hizini kademeli dusurerek val loss'u ortalama %8 daha asagi cekmistir. Kosinus egrisi, ani LR dususlerinden daha puruzsuz yakinsama saglar.
 
 ### 7.3. Gercek Dunya (Domain Shift) Dayanikliligi
@@ -314,7 +314,7 @@ Canli mikrofon kayitlarinda SENet modelleri tutarli ve dusuk entropili kararlar 
 
 ---
 
-## 8. GUI Sistemi — Gradio Tabanli Interaktif Arayuz
+## 8. GUI Sistemi - Gradio Tabanli Interaktif Arayuz
 
 Egitilmis modellerin pratik kullanimi icin **Gradio** tabanli interaktif bir web arayuzu gelistirilmistir.
 
@@ -324,7 +324,7 @@ Egitilmis modellerin pratik kullanimi icin **Gradio** tabanli interaktif bir web
 - 4 model varyanti secimi (Baseline / Robust x 2D SENet / 1D RawNet2)
 - Temperature Scaling (T=0.5 - 5.0): T=1.0 varsayilan (orijinal guven). T<1.0 daha keskin kararlar, T>1.0 daha temkinli kararlar uretir.
 - Kayan Pencere (Sliding Window): Uzun sesleri 4 sn'lik parcalara bolup her birini bagimsiz analiz eder, sonuclari ortalar
-- XAI Saliency Map: Gradient-tabanli vurgu haritasi — hangi frekans/zaman noktasinin karari etkiledigini gosterir
+- XAI Saliency Map: Gradient-tabanli vurgu haritasi - hangi frekans/zaman noktasinin karari etkiledigini gosterir
 - Otomatik PDF Rapor: IMRAD formatinda adli bilisim raporu uretir
 - Shannon Entropisi: Model ciktisinin belirsizlik olcusu. H > 0.8 ise karar guvenilir degildir
 
