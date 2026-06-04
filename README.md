@@ -94,7 +94,7 @@ Girdi: [Batch, 1, 64000]
 | Parametre | Deger | Secim Gerekcelesi |
 |:---|:---|:---|
 | Ilk kernel boyutu | 128 | 16 kHz orneklemede 128 nokta = 8 ms'lik pencere. Insan konusmasinin temel frekans periyoduna (5-12 ms) yakinsayan bu pencere, modelin vokal tonu yakalayabilecegi minimum birimleri olusturur. |
-| Ilk stride | 32 | 64,000 boyutlu girdiyi tek adimda 2,000'e indirger (32x kucultme). Bu agresif indirgeme, sinyalin ham orneklem seviyesindeki fazla bilgiyi atar ve hesaplama maliyetini yonetilebilir kilcilar. |
+| Ilk stride | 32 | 64,000 boyutlu girdiyi tek adimda 2,000'e indirger (32x kucultme). Bu agresif indirgeme, sinyalin ham orneklem seviyesindeki fazla bilgiyi atar ve hesaplama maliyetini yonetilebilir kilar. |
 | Kanal genislemesi | 32 -> 64 -> 64 -> 128 | Her blokta uzaysal boyut yarilirken kanal sayisi ikiye katlanir. Bu strateji, bilgi kaybini kanal derinligi ile telafi eder. |
 | Aktivasyon (LeakyReLU) | slope=0.3 | Ses dalgalari negatif genlik tasir. Standart ReLU negatif degerleri sifirlar ve bu bilgiyi yok eder. LeakyReLU(0.3) negatif bolgeyi %30 oraninda gecirerek negatif hava basinci varyasyonlarini korur. |
 | Dropout | 0.5 | Siniflandirma katmaninda noronlarin yarisini rastgele kapatarak overfitting'i onler. 0.5 degeri, kucuk veri setlerinde standart tercihdir. |
@@ -152,7 +152,7 @@ Standart siniflandirma kaybi. Model ciktisinin hedef dagilima yakinligini olcer.
 L = -alpha * (1 - pt)^gamma * log(pt)
 ```
 Nesne tespiti icin gelistirilmis (Lin et al., 2017) bu kayip fonksiyonu, kolay siniflandirilan orneklerin gradyan katkisini `(1-pt)^gamma` carpani ile bastirir. Projede iki farkli gamma degeri test edilmistir:
-- `gamma=2`: Zor orneklere imlimli odaklanma. Kolay bir ornegin (pt=0.9) gradyan agirligi: (0.1)^2 = 0.01 (normal CE'nin %1'i)
+- `gamma=2`: Zor orneklere ilimli odaklanma. Kolay bir ornegin (pt=0.9) gradyan agirligi: (0.1)^2 = 0.01 (normal CE'nin %1'i)
 - `gamma=5`: Stres testi olarak tasarlanan ekstrem odaklanma. Ayni ornegin agirligi: (0.1)^5 = 0.00001 (fiilen sifir)
 
 **CrossEntropy + Label Smoothing — Asiri Ozguven Kirici:**
@@ -283,7 +283,7 @@ Grid-search mantigi ile egitilen 7 model varyantinin, 8,000 ornekli dogrulama se
 SENet Robust'taki %1.80'lik asimetrik sapma sistematik bir sonuctur. Adli bilisim baglaminda sahte bir sesi gozden kacirmak (False Negative), gercek bir sese sahte uyarisi vermekten (False Positive) cok daha yuksek bir risk faktoru tasir. Label Smoothing teknigi, modelin marjinal orneklere tam guven (1.0) atamasini engelledigi icin, model supheli durumlarda "sahte" etiketini atamaya algoritmik olarak daha egilimli hale gelmistir. Bu sonuc guvenlik mimarilerinin hedefleriyle tam ortusmustur.
 
 **F1 Skoru (%97.02) ve Degenerasyon Kontrolu:**
-Salt Recall optimizasyonu, modelin tum girdileri "sahte" siniflandirarak %100 oranina ulasmasi gibi dejenere (trivial) cozumlere yol acabilmektedir. %97.02 duzeyindeki F1 harmonik ortalamasi, modelin boyle bir dejenere duruma dusmedigini ve gercek/sahte siniflar arasindaki geometrik karar sinirini optimal sekilde modelletigini gostermektedir.
+Salt Recall optimizasyonu, modelin tum girdileri "sahte" siniflandirarak %100 oranina ulasmasi gibi dejenere (trivial) cozumlere yol acabilmektedir. %97.02 duzeyindeki F1 harmonik ortalamasi, modelin boyle bir dejenere duruma dusmedigini ve gercek/sahte siniflar arasindaki geometrik karar sinirini optimal sekilde modelledigini gostermektedir.
 
 **EER Iyilesmesi (%2.70 -> %2.18):**
 SENet Baseline varyantinda %2.70 olan EER, Label Smoothing ve Cosine Annealing entegrasyonuyla %2.18'e gerilemistir. Bu iyilesme, modelin icsel logit dagilimlari arasindaki ortusmenin azaldigini ve siniflarin uzaysal olarak daha kesin ayristigini ifade etmektedir.
@@ -324,11 +324,11 @@ Egitilmis modellerin pratik kullanimi icin **Gradio** tabanli interaktif bir web
 - 4 model varyanti secimi (Baseline / Robust x 2D SENet / 1D RawNet2)
 - Temperature Scaling (T=0.5 - 5.0): T=1.0 varsayilan (orijinal guven). T<1.0 daha keskin kararlar, T>1.0 daha temkinli kararlar uretir.
 - Kayan Pencere (Sliding Window): Uzun sesleri 4 sn'lik parcalara bolup her birini bagimsiz analiz eder, sonuclari ortalar
-- XAI Saliency Map: Gradient-tabanli vurgu haritasi — hangi frekans/zaman noktasinin karari ettikledigini gosterir
+- XAI Saliency Map: Gradient-tabanli vurgu haritasi — hangi frekans/zaman noktasinin karari etkiledigini gosterir
 - Otomatik PDF Rapor: IMRAD formatinda adli bilisim raporu uretir
 - Shannon Entropisi: Model ciktisinin belirsizlik olcusu. H > 0.8 ise karar guvenilir degildir
 
-### Opsiyonel DSP Zihrhi (Canli Ses Icin Sinyal Temizleme)
+### Opsiyonel DSP Zirhi (Canli Ses Icin Sinyal Temizleme)
 Egitim verisi (studyo kalitesi) ile gercek dunya (canli mikrofon) arasindaki uyumsuzluklari azaltmak icin 3 adimli bir on isleme zinciri sunulmustur:
 
 | Islem | Aciklama |
