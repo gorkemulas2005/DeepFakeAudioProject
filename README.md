@@ -89,7 +89,19 @@ Girdi: [Batch, 1, 64000]
   -> FC(128->64) -> Dropout(0.5) -> FC(64->2)
 ```
 
-Ilk katmandaki `stride=32` parametresi, 64,000 boyutlu girdiyi ani bir boyutsal indirgeme ile soyutlar. Ardisik Residual Bloklarindaki `stride=2` islemi, yerel zaman korelasyonlarini hiyerarsik olarak birlestirir.
+**Parametre Secim Gerekceleri:**
+
+| Parametre | Deger | Secim Gerekcelesi |
+|:---|:---|:---|
+| Ilk kernel boyutu | 128 | 16 kHz orneklemede 128 nokta = 8 ms'lik pencere. Insan konusmasinin temel frekans periyoduna (5-12 ms) yakinsayan bu pencere, modelin vokal tonu yakalayabilecegi minimum birimleri olusturur. |
+| Ilk stride | 32 | 64,000 boyutlu girdiyi tek adimda 2,000'e indirger (32x kucultme). Bu agresif indirgeme, sinyalin ham orneklem seviyesindeki fazla bilgiyi atar ve hesaplama maliyetini yonetilebilir kilcilar. |
+| Kanal genislemesi | 32 -> 64 -> 64 -> 128 | Her blokta uzaysal boyut yarilirken kanal sayisi ikiye katlanir. Bu strateji, bilgi kaybini kanal derinligi ile telafi eder. |
+| Aktivasyon (LeakyReLU) | slope=0.3 | Ses dalgalari negatif genlik tasir. Standart ReLU negatif degerleri sifirlar ve bu bilgiyi yok eder. LeakyReLU(0.3) negatif bolgeyi %30 oraninda gecirerek negatif hava basinci varyasyonlarini korur. |
+| Dropout | 0.5 | Siniflandirma katmaninda noronlarin yarisini rastgele kapatarak overfitting'i onler. 0.5 degeri, kucuk veri setlerinde standart tercihdir. |
+| Havuzlama | AdaptiveMaxPool1d | Ses icin Max Pooling, dominant (en guclu) aktivasyonlari korur. Ortalama havuzlama zayif sinyalleri seyreltirken, Max ucsuz sinyallerde tepe ozelliklerini yakalar. |
+
+**Receptive Field (Algilama Alani):**
+Ilk Conv1d katmani `kernel=128, stride=32` ile her cikti noktasi 128 ham orneklemi (8 ms) kapsar. Ardisik 3 ResBlock'tan (her biri stride=2) sonra receptive field ustel olarak buyur. Son katmandaki bir noron, orijinal sinyalin yaklasik 1,000 orneklemini (~62.5 ms) gorebilir. Bu, sesli harflerin (vowel) temel periyodunu kapsamaya yeterlidir ancak uzun sureli prozodiyi (melodi, tonlama) modellemek icin sinirlidir.
 
 ### 4.2. SENet (2D CNN + Squeeze-and-Excitation)
 
@@ -102,15 +114,26 @@ Girdi: [Batch, 1, 128, 126]
   -> Dropout(0.5) -> FC(128->2)
 ```
 
-**SE Blogu Isleyisi:**
+**Parametre Secim Gerekceleri:**
+
+| Parametre | Deger | Secim Gerekcelesi |
+|:---|:---|:---|
+| Kernel boyutu | 3x3 | 2D uzayda en kucuk anlamli filtre. 3x3, hem yatay (zaman) hem dikey (frekans) komsuluk iliskisini yakalar ve hesaplama maliyeti dusuktur. |
+| Aktivasyon (ReLU) | - | 2D temsilde girdi zaten dB olceginde normalize edilmistir (negatif deger icermez). Bu nedenle negatif koruma gereksizdir ve standart ReLU yeterlidir. |
+| SE Kucultme Orani | r=16 | 128 kanalli bilgi, 8 boyutlu bir darbogazdan gecer. Bu oran, yeterli soyutlama saglarken parametre sayisini kontrol altinda tutar. r=4 (cok genis) overfitting riski tasirken, r=32 (cok dar) bilgi kaybina neden olur. |
+| Havuzlama | AdaptiveAvgPool2d | Spektrogram icin Ortalama Havuzlama, tum frekans-zaman bolgesinin genel enerji dagilimini ozetler. Max Pooling yalnizca en parlak noktayi alirken, Average tum bolgeden bilgi toplar — SE blogu bu ortalama uzerinden kanal onemini hesaplar. |
+| MaxPool2d stride | 2 | Her havuzlama sonrasi uzaysal boyutlar yarilir: 128x126 -> 64x63 -> 32x31 -> 16x15. Bu piramidal kucultme, soyutlama seviyesini kademeli olarak arttirir. |
+
+**SE Blogu Isleyisi (Adim Adim):**
 
 SE blogu, her katmanda hangi frekans kanallarinin deepfake tespiti icin daha kritik oldugunu dinamik olarak hesaplar:
 
-1. **Squeeze:** Her kanalin uzaysal ortalamasini alir (Global Average Pooling)
-2. **Excitation:** Kanal onemlilik agirliklarini ogrenir (FC -> ReLU -> FC -> Sigmoid)
-3. **Scale:** Orijinal ozellikleri onem agirligiyla carpar
+1. **Squeeze (Sikistirma):** Her kanalin uzaysal ortalamasini alir (Global Average Pooling). 128 kanalli ozellik haritasi, 128 boyutlu bir vektore indirgenir.
+2. **Excitation (Uyarma):** Kanal onemlilik agirliklarini ogrenir. Bu vektor once FC katmaniyla r=16 oraninda daraltilir (128 -> 8), ReLU ile aktive edilir, sonra tekrar genisletilir (8 -> 128) ve Sigmoid ile 0-1 araligina cekilir.
+3. **Scale (Olcekleme):** Orijinal ozellik haritasinin her kanali, Sigmoid ciktisiyla carpilir. Onemli kanallar guclendirilir, gereksiz kanallar bastirilir.
 
-Kucultme orani `r=16` ile model, 128 kanalli bilgiyi 8 boyutlu bir darbogazdan (bottleneck) gecmeye zorlanir. Bu, modelin gereksiz gurultuleri elemesini ve sadece karar sinirini belirleyen temel frekanslara odaklanmasini saglar.
+**Receptive Field Karsilastirmasi (1D vs 2D):**
+2D modelde 3 katman Conv2d(k=3) + MaxPool2d(2) sonrasi, son katmandaki bir noron orijinal spektrogramin 26x26'lik bir bolgesini gorebilir. Bu bolge, frekans ekseninde ~26 mel bandini (toplam 128'den) ve zaman ekseninde ~26 frame'i (~0.83 saniye) kapsar. 2D modelin avantaji, frekans ve zaman eksenlerini ayni anda tarayarak vocoder artefaktlarini 2 boyutlu uzamsal doku (texture) olarak algilamasidir.
 
 ---
 
@@ -118,38 +141,46 @@ Kucultme orani `r=16` ile model, 128 kanalli bilgiyi 8 boyutlu bir darbogazdan (
 
 ### 5.1. Test Edilen Kayip Fonksiyonlari
 
-**CrossEntropy (CE):**
+**CrossEntropy (CE) — Temel Referans:**
 ```
-L = -sum(yi * log(y_hat_i))
+L = -sum( yi * log(y_hat_i) )
 ```
-Standart siniflandirma kaybi. Model ciktisinin hedef dagilima yakinligini olcer.
+Standart siniflandirma kaybi. Model ciktisinin hedef dagilima yakinligini olcer. Tum diger kayip fonksiyonlari bu referansa gore karsilastirilmistir. Sabit ogrenme hizi ile kullanildiginda (Baseline modeller) guvenilir bir baz cizgisi olusturur.
 
-**Focal Loss:**
+**Focal Loss — Zor Ornek Odaklanmasi:**
 ```
 L = -alpha * (1 - pt)^gamma * log(pt)
 ```
-Zor orneklere odaklanmayi hedefler. gamma=2 ve gamma=5 parametreleri test edilmistir. Yuksek gamma degerleri kolay orneklerin gradyan katkisini neredeyse sifirlar.
+Nesne tespiti icin gelistirilmis (Lin et al., 2017) bu kayip fonksiyonu, kolay siniflandirilan orneklerin gradyan katkisini `(1-pt)^gamma` carpani ile bastirir. Projede iki farkli gamma degeri test edilmistir:
+- `gamma=2`: Zor orneklere imlimli odaklanma. Kolay bir ornegin (pt=0.9) gradyan agirligi: (0.1)^2 = 0.01 (normal CE'nin %1'i)
+- `gamma=5`: Stres testi olarak tasarlanan ekstrem odaklanma. Ayni ornegin agirligi: (0.1)^5 = 0.00001 (fiilen sifir)
 
-**CrossEntropy + Label Smoothing:**
+**CrossEntropy + Label Smoothing — Asiri Ozguven Kirici:**
 ```
-y_smooth = (1 - epsilon) * y + epsilon / C,    epsilon = 0.1
+y_smooth = (1 - epsilon) * y + epsilon / C       (epsilon = 0.1, C = 2)
 ```
-"Kesinlikle gercek" (1.0) etiketi yerine (0.95), "kesinlikle sahte" (0.0) yerine (0.05) hedefleyerek modelin asiri ozguvenini kirar.
+Keskin hedefler (1.0 vs 0.0) yerine yumusatilmis hedefler (0.95 vs 0.05) kullanarak modeli "kesinlikle emin olma" zorunlulgundan kurtarir. Bu regularizasyon, modelin egitim verisindeki gurultu orneklerini ezberlemesini engeller ve domain-shift altinda (farkli mikrofon, farkli ortam) daha stabil kararlar vermesini saglar.
+
+**CosineAnnealing Learning Rate Scheduler:**
+```
+lr(t) = lr_min + 0.5 * (lr_max - lr_min) * (1 + cos(t * pi / T_max))
+```
+Ogrenme hizini kosinus egrisi boyunca kademeli olarak dusurur. Sabit LR'nin son epoch'larda optimumdan sapmasi riskini ortadan kaldirir. Yalnizca Robust modellerde (Label Smoothing ile birlikte) uygulanmistir.
 
 ### 5.2. Optimizasyon Konfigurasyonu
 
-| Parametre | Deger | Neden |
+| Parametre | Deger | Secim Gerekcelesi |
 |:---|:---|:---|
-| Optimizer | AdamW | Weight decay ile L2 regularizasyonunu dogru ayristirir |
-| Ogrenme hizi (LR) | 1e-3 | Standart baslangic |
-| Weight decay | 1e-3 | Overfitting kalkani |
-| Batch size | 8 | VRAM siniri (6GB) |
-| Gradient Accumulation | 4 adim | Efektif batch = 32 |
-| Mixed Precision (AMP) | FP16 | Bellek tasarrufu, tensor cekirdek verimi |
-| Scheduler | CosineAnnealingLR | Puruzsuz LR azaltma (sadece Robust modellerde) |
-| Epoch sayisi | 15 | En iyi val_loss checkpoint kaydedilir |
+| Optimizer | AdamW | Standart Adam, weight decay ve L2 regularizasyonunu karistirarak istenmeyen etkilesim yaratir. AdamW bu ikisini matematiksel olarak ayristirir (Loshchilov & Hutter, 2019). |
+| Ogrenme hizi (LR) | 1e-3 | AdamW icin standart baslangic noktasi. CosineAnnealing ile kademeli azaltilir. |
+| Weight decay | 1e-3 | Agirliklarin buyumesini sinirlandirarak overfitting'i baskiler. 1e-3, kucuk-orta olcekli modeller icin dengeli bir deger. |
+| Batch size | 8 | RTX 4050 (6GB VRAM) fiziksel siniri. Daha buyuk batch bellege sigmaz. |
+| Gradient Accumulation | 4 adim | 4 mini-batch gradyanini toplayarak efektif batch = 32 simule edilir. Buyuk batch'in istatistiksel stabilite avantajini donanim siniri icinde saglar. |
+| Mixed Precision (AMP) | FP16 | Ileri gecis (forward) hesaplamalari 16-bit kayan noktali sayilarla yapilir, bellek tuketimi yarilir. GradScaler, FP16'da gradyanlarin sifira yuvarlanmasini (underflow) engeller. |
+| Scheduler | CosineAnnealingLR | Sadece Robust modellerde aktif. Loss yuzeyinde minimuma yaklasirken adimlari kademeli kucultup puruzsuz yakinsama saglar. |
+| Epoch sayisi | 15 | Her epoch sonunda val_loss kontrol edilir; en dusuk val_loss'a sahip checkpoint kaydedilir (early stopping benzeri). |
 
-**Donanimsal Kisit ve Cozum:** RTX 4050 (6GB VRAM) ile 32'lik batch size bellek sinirini asmaktadir. Cozum olarak batch 8'e dusurulup gradyanlar 4 adim boyunca toplanarak efektif batch size 32'ye simule edilmistir. AMP ile hesaplamalar 16-bit'e dusurulurek bellek tuketimi yariya indirilmistir.
+**Donanimsal Kisit ve Cozum:** RTX 4050 (6GB VRAM) donanim siniri nedeniyle 32'lik batch size Out of Memory (OOM) hatasi uretmistir. Bu kisit, Gradient Accumulation (batch=8, 4 adim biriktirme) ve Mixed Precision (AMP - FP16) kombinasyonuyla asilmistir. Bu cozum, buyuk batch'in istatistiksel avantajini korurken bellek tuketimini yaklasik 4x azaltmistir.
 
 ---
 
@@ -272,7 +303,7 @@ SENet Robust (LS+CA) tum metriklerde en iyi sonucu vermistir. Label Smoothing'in
 Focal Loss'un "zor orneklere odaklanma" stratejisi, SE bloklarinin "onemli kanallari secme" stratejisi ile es zamanli calistiginda cifte dikkat cakismasi yasanmistir. SENet Focal g=2, SENet Baseline'in %0.62 puan gerisinde kalmistir. Focal Loss, SE blogu olan mimarilerde gereksiz hatta zararlidir.
 
 **Bulgu 4 — Yuksek Gamma Degerleri Model Cokertir:**
-g=5 ile RawNet2 tamamen cokmesustur (F1=%0, EER=%50). `(1-pt)^5` carpani kolay orneklerin gradyan katkisini neredeyse sifirlarken, gurultulu ses orneklerinde gradyanlari kontrolsuzce buyutmustur (gradient explosion). Model tum ornekleri tek sinifa atayarak kaybi minimize etmis, accuracy %50'de kitlenmistir.
+g=5 ile RawNet2 tamamen cokmustur (F1=%0, EER=%50). `(1-pt)^5` carpani kolay orneklerin gradyan katkisini neredeyse sifirlarken, gurultulu ses orneklerinde gradyanlari kontrolsuzce buyutmustur (gradient explosion). Model tum ornekleri tek sinifa atayarak kaybi minimize etmis, accuracy %50'de kitlenmistir.
 
 **Bulgu 5 — CosineAnnealing Ince Ayar Saglar:**
 Robust modellerde CosineAnnealing scheduler, son epoch'larda ogrenme hizini kademeli dusurerek val loss'u ortalama %8 daha asagi cekmistir. Kosinus egrisi, ani LR dususlerinden daha puruzsuz yakinsama saglar.
@@ -291,12 +322,20 @@ Egitilmis modellerin pratik kullanimi icin **Gradio** tabanli interaktif bir web
 - Desteklenen formatlar: WAV, MP3, FLAC, OGG
 - Mikrofondan canli kayit
 - 4 model varyanti secimi (Baseline / Robust x 2D SENet / 1D RawNet2)
-- Temperature Scaling (T=0.5 - 5.0)
-- Opsiyonel DSP On Isleme (DC Offset silme, Silence Trim, Hann Window Fade)
-- Kayan Pencere (Sliding Window): 4 sanyelik parcalara bolup her birini analiz eder
-- XAI Saliency Map: Gradient-tabanli vurgu haritasi
+- Temperature Scaling (T=0.5 - 5.0): T=1.0 varsayilan (orijinal guven). T<1.0 daha keskin kararlar, T>1.0 daha temkinli kararlar uretir.
+- Kayan Pencere (Sliding Window): Uzun sesleri 4 sn'lik parcalara bolup her birini bagimsiz analiz eder, sonuclari ortalar
+- XAI Saliency Map: Gradient-tabanli vurgu haritasi — hangi frekans/zaman noktasinin karari ettikledigini gosterir
 - Otomatik PDF Rapor: IMRAD formatinda adli bilisim raporu uretir
-- Shannon Entropisi ile karar guvenilirligi olcumu
+- Shannon Entropisi: Model ciktisinin belirsizlik olcusu. H > 0.8 ise karar guvenilir degildir
+
+### Opsiyonel DSP Zihrhi (Canli Ses Icin Sinyal Temizleme)
+Egitim verisi (studyo kalitesi) ile gercek dunya (canli mikrofon) arasindaki uyumsuzluklari azaltmak icin 3 adimli bir on isleme zinciri sunulmustur:
+
+| Islem | Aciklama |
+|:---|:---|
+| **DC Offset Removal** | Mikrofon veya ses kartinin elektriksel devresi, ses sinyaline kucuk bir sabit voltaj ekleyebilir. Bu kaymayi `y = y - mean(y)` ile gidererek dalga formunu sifir cizgisine geri oturtulur. |
+| **Silence Trimming** | Kaydin basi ve sonundaki sessiz bolgeleri `librosa.effects.trim(y, top_db=40)` ile keser. 40 dB esigi, oda gurultusunu tolere ederken gereksiz bos bolgeleri temizler. |
+| **Hann Window Fade** | Sinyalin ani baslayip bitmesi (hard clip) spektral sizinti (spectral leakage) yaratir. Ilk ve son 200 ms'ye Hann pencere zarfi uygulanarak ses yumusak baslayip biter. |
 
 ### Ornek Kullanim
 
