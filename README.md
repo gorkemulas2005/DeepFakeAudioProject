@@ -1,9 +1,10 @@
 # Derin Öğrenme Tabanlı Deepfake Ses Tespit Sistemi
 ## 1D ve 2D Temsil Uzaylarının Karşılaştırmalı Analizi
 
+| İsim Soyisim | E-posta Adresi |
 
-Ulaş Görkem Kazan                         Bora Doğru
-23291785@ogrenci.ankara.edu.tr            23291786@ogrenci.ankara.edu.tr
+| Ulaş Görkem Kazan | 23291785@ogrenci.ankara.edu.tr |
+| Bora Doğru | 23291786@ogrenci.ankara.edu.tr |
 
 Bu proje, sentetik ses (deepfake) tespitinde kullanılan derin öğrenme mimarilerinin, sinyal temsil uzaylarına (1D ham dalga formu ve 2D Mel-spektrogram) göre performans ve genelleme kapasitelerini inceleyen kapsamlı bir adli bilişim (audio forensics) çalışmasıdır.
 
