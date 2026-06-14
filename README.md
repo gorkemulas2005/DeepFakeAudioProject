@@ -2,7 +2,6 @@
 ## 1D ve 2D Temsil Uzaylarının Karşılaştırmalı Analizi
 
 | İsim Soyisim | E-posta Adresi |
-
 | Ulaş Görkem Kazan | 23291785@ogrenci.ankara.edu.tr |
 | Bora Doğru | 23291786@ogrenci.ankara.edu.tr |
 
